@@ -160,9 +160,8 @@ const MOCK_DATA: UserData = {
 
 // --- QUERIES ---
 
-const ANNUAL_REPORT_QUERY = `
-query UserAnnualReport($login: String!, $from: DateTime!, $to: DateTime!) {
-  user(login: $login) {
+// Shared Fragment for Data Consistency
+const USER_DATA_FRAGMENT = `
     name
     login
     avatarUrl
@@ -263,8 +262,8 @@ query UserAnnualReport($login: String!, $from: DateTime!, $to: DateTime!) {
       }
     }
 
-    # 7. Repositories
-    repositories(first: 100, orderBy: {field: STARGAZERS, direction: DESC}, ownerAffiliations: [OWNER, COLLABORATOR]) {
+    # 7. Repositories (Public + Private if Affiliations match)
+    repositories(first: 100, orderBy: {field: STARGAZERS, direction: DESC}, ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
       totalCount
       nodes {
         name
@@ -297,17 +296,23 @@ query UserAnnualReport($login: String!, $from: DateTime!, $to: DateTime!) {
         }
       }
     }
+`;
+
+const ANNUAL_REPORT_QUERY = `
+query UserAnnualReport($login: String!, $from: DateTime!, $to: DateTime!) {
+  user(login: $login) {
+    ${USER_DATA_FRAGMENT}
   }
 }
 `;
 
-// Fallback to determine username if not provided
-const VIEWER_LOGIN_QUERY = `
-  query {
-    viewer {
-      login
-    }
+// Viewer query specifically for fetching "MY" data (includes Private)
+const VIEWER_REPORT_QUERY = `
+query ViewerAnnualReport($from: DateTime!, $to: DateTime!) {
+  viewer {
+    ${USER_DATA_FRAGMENT}
   }
+}
 `;
 
 // --- FETCH FUNCTION ---
@@ -317,30 +322,22 @@ export const fetchGitHubData = async (token: string, username?: string): Promise
     return new Promise((resolve) => setTimeout(() => resolve(MOCK_DATA), 1500));
   }
 
-  let targetUsername = username;
-
-  // 1. If no username provided, fetch viewer login first
-  if (!targetUsername) {
-    const viewerRes = await fetch(GITHUB_GRAPHQL_API, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ query: VIEWER_LOGIN_QUERY }),
-    });
-    
-    if (!viewerRes.ok) throw new Error("Failed to fetch viewer identity");
-    const viewerJson = await viewerRes.json();
-    if (viewerJson.errors) throw new Error(viewerJson.errors[0].message);
-    targetUsername = viewerJson.data.viewer.login;
-  }
-
-  // 2. Fetch Report Data
   // Default to year 2025 (or current year)
   const currentYear = new Date().getFullYear();
   const from = `${currentYear}-01-01T00:00:00Z`;
   const to = `${currentYear}-12-31T23:59:59Z`;
+
+  // IF no username is provided, we use the VIEWER query.
+  // This is CRITICAL because querying 'viewer' allows access to private stats/repos 
+  // that querying 'user(login: me)' might hide depending on token scope nuance.
+  const isViewerQuery = !username || username.trim() === '';
+
+  const query = isViewerQuery ? VIEWER_REPORT_QUERY : ANNUAL_REPORT_QUERY;
+  const variables: any = { from, to };
+  
+  if (!isViewerQuery) {
+    variables.login = username;
+  }
 
   const response = await fetch(GITHUB_GRAPHQL_API, {
     method: 'POST',
@@ -348,14 +345,7 @@ export const fetchGitHubData = async (token: string, username?: string): Promise
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify({
-      query: ANNUAL_REPORT_QUERY,
-      variables: {
-        login: targetUsername,
-        from,
-        to
-      },
-    }),
+    body: JSON.stringify({ query, variables }),
   });
 
   if (!response.ok) {
@@ -368,11 +358,14 @@ export const fetchGitHubData = async (token: string, username?: string): Promise
     throw new Error(json.errors[0].message);
   }
 
-  if (!json.data.user) {
-    throw new Error(`User ${targetUsername} not found or accessible.`);
+  // Normalize data (viewer vs user)
+  const userData = isViewerQuery ? json.data.viewer : json.data.user;
+
+  if (!userData) {
+    throw new Error(`User ${username || 'authenticated user'} not found or accessible.`);
   }
 
-  return json.data.user;
+  return userData;
 };
 
 // --- HELPERS ---

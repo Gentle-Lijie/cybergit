@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Fingerprint, AlertTriangle, KeyRound, User } from 'lucide-react';
+import { Fingerprint, AlertTriangle, KeyRound } from 'lucide-react';
 import { Translations } from '../translations';
 import { audioService } from '../services/audioService';
 
@@ -13,14 +13,14 @@ interface LoginFormProps {
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading, error, t }) => {
   const [token, setToken] = useState('');
-  const [username, setUsername] = useState('');
   const [enableAi, setEnableAi] = useState(true);
   const [showManualInput, setShowManualInput] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     audioService.playClick();
-    if (token) onLogin(token, username, enableAi);
+    // Pass empty username to trigger viewer query in backend service
+    if (token) onLogin(token, '', enableAi);
   };
 
   const openGitHubTokenPage = () => {
@@ -75,17 +75,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading, error,
             {/* Manual Input Section (Appears after click or if manually toggled) */}
             <div className={`transition-all duration-500 overflow-hidden ${showManualInput ? 'max-h-[300px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-                    <div className="relative">
-                        <input 
-                            type="text"
-                            value={username}
-                            onChange={(e) => { setUsername(e.target.value); audioService.playType(); }}
-                            placeholder={t.login.usernamePlaceholder}
-                            className="w-full bg-black border border-primary/30 text-primary p-3 pl-10 focus:outline-none focus:border-primary focus:shadow-[0_0_10px_rgba(0,255,65,0.3)] transition-all font-mono text-xs placeholder:text-primary/30"
-                        />
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/50 w-4 h-4" />
-                    </div>
-                    
                     <div className="relative">
                         <input 
                             type="password"

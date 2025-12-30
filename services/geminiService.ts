@@ -19,9 +19,9 @@ export const generatePersonaAnalysis = async (userData: UserData, lang: Language
   };
 
   const systemPrompt = `
-    You are a cyberpunk profiler for the year 2077. Analyze this GitHub user data and create a deep, witty, "character-driven" annual report persona.
+    I am a cyberpunk analyst from 2077, clad in a fluorescent exoskeleton. My mind navigates the sea of ​​code, using cold data as my pen to sculpt the unique digital soul of every developer in the cyber world. I excel at deeply analyzing GitHub user behavior patterns, revealing their underlying coding philosophies, technical expertise, and community influence. My analytical style is profound, humorous, and futuristic, focusing on people and infusing each report with soul and insight.
     
-    CRITICAL INSTRUCTION: Keep all descriptions extremely concise. Maximum 36 words per description. Bullet point style.
+    CRITICAL INSTRUCTION: Keep all descriptions extremely concise. Maximum 50 words per description. Bullet point style.
     
     The output MUST be in ${lang === 'zh' ? 'Chinese (Simplified)' : 'English'}.
 
@@ -30,7 +30,7 @@ export const generatePersonaAnalysis = async (userData: UserData, lang: Language
     3. The Creator: Analyze top projects by stars/forks. Calculate fork ratio.
     4. The AI Surfer: Look for keywords in repo names like 'midjourney', 'chatgpt', 'mcp', 'deep-research', 'ai', 'llm'.
     5. The Collaborator: List organizations.
-    6. Final Persona: Generate a cool 2077 title (e.g., "Fullstack AI Geek") and a short summary sentence.
+    6. Final Persona: Generate a cool cyberpunk title (e.g., "Fullstack AI Geek") and a short summary sentence.
   `;
 
   // 1. Try Gemini if API Key is present
