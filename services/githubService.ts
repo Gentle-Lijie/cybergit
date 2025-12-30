@@ -1,4 +1,3 @@
-
 import { UserData, ProcessedLanguage, RepositoryNode, AnalysisResult, ContributionDay, TopicStat } from '../types';
 import { Translations } from '../translations';
 
@@ -370,17 +369,23 @@ export const fetchGitHubData = async (token: string, username?: string): Promise
 
 // --- HELPERS ---
 
-export const processLanguageData = (repositories: RepositoryNode[]): ProcessedLanguage[] => {
+export const processLanguageData = (repositories: RepositoryNode[] | undefined | null): ProcessedLanguage[] => {
   const languageMap = new Map<string, { size: number; color: string }>();
   let totalSize = 0;
 
+  if (!repositories || !Array.isArray(repositories)) {
+    return [];
+  }
+
   repositories.forEach(repo => {
-    repo.languages.edges.forEach(edge => {
-      const { name, color } = edge.node;
-      const current = languageMap.get(name) || { size: 0, color };
-      languageMap.set(name, { size: current.size + edge.size, color });
-      totalSize += edge.size;
-    });
+    if (repo.languages && repo.languages.edges) {
+        repo.languages.edges.forEach(edge => {
+            const { name, color } = edge.node;
+            const current = languageMap.get(name) || { size: 0, color };
+            languageMap.set(name, { size: current.size + edge.size, color });
+            totalSize += edge.size;
+        });
+    }
   });
 
   return Array.from(languageMap.entries())
@@ -388,21 +393,31 @@ export const processLanguageData = (repositories: RepositoryNode[]): ProcessedLa
       name,
       color,
       size,
-      percentage: Math.round((size / totalSize) * 100),
+      percentage: totalSize > 0 ? Math.round((size / totalSize) * 100) : 0,
     }))
     .sort((a, b) => b.size - a.size)
     .slice(0, 10);
 };
 
 export const analyzeUserData = (data: UserData, t: Translations): AnalysisResult => {
+  // Defensive checks for core objects
+  const contributionCollection = (data.contributionsCollection || {}) as Partial<UserData['contributionsCollection']>;
+  const repoNodes = data.repositories?.nodes || [];
+  const orgNodes = data.organizations?.nodes || [];
+  
   // --- Account Stats ---
-  const accountAgeYears = new Date().getFullYear() - new Date(data.createdAt).getFullYear();
-  const followers = data.followers.totalCount;
+  const createdAt = data.createdAt ? new Date(data.createdAt) : new Date();
+  const accountAgeYears = new Date().getFullYear() - createdAt.getFullYear();
+  const followers = data.followers?.totalCount || 0;
 
   // --- Streak Calculation ---
   const days: ContributionDay[] = [];
-  data.contributionsCollection.contributionCalendar.weeks.forEach(week => {
-    days.push(...week.contributionDays);
+  const calendarWeeks = contributionCollection.contributionCalendar?.weeks || [];
+  
+  calendarWeeks.forEach(week => {
+    if (week.contributionDays) {
+        days.push(...week.contributionDays);
+    }
   });
   
   let currentStreak = 0;
@@ -438,36 +453,39 @@ export const analyzeUserData = (data: UserData, t: Translations): AnalysisResult
   // Use Repositories list for stars to ensure accuracy
   let maxStarsSeen = -1;
   let hottestProjectName = "Unknown";
-  let topReposList: RepositoryNode[] = [];
   let totalDiskUsage = 0;
   let privateRepoCount = 0;
 
-  data.repositories.nodes.forEach(repo => {
-    totalDiskUsage += repo.diskUsage;
+  repoNodes.forEach(repo => {
+    totalDiskUsage += (repo.diskUsage || 0);
     if (repo.isPrivate) privateRepoCount++;
-    if (repo.stargazerCount > maxStarsSeen) {
+    if ((repo.stargazerCount || 0) > maxStarsSeen) {
         maxStarsSeen = repo.stargazerCount;
         hottestProjectName = repo.name;
     }
   });
   
-  topReposList = [...data.repositories.nodes]
-    .sort((a, b) => b.stargazerCount - a.stargazerCount)
-    .slice(0, 3); // UPDATED: Changed from 5 to 3
+  const topReposList = [...repoNodes]
+    .sort((a, b) => (b.stargazerCount || 0) - (a.stargazerCount || 0))
+    .slice(0, 3);
 
-  const avgRepoSize = data.repositories.totalCount > 0 ? Math.round(totalDiskUsage / data.repositories.totalCount) : 0;
-  const privateRepoRatio = data.repositories.totalCount > 0 ? privateRepoCount / data.repositories.totalCount : 0;
+  const totalRepos = data.repositories?.totalCount || repoNodes.length;
+  const avgRepoSize = totalRepos > 0 ? Math.round(totalDiskUsage / totalRepos) : 0;
+  const privateRepoRatio = totalRepos > 0 ? privateRepoCount / totalRepos : 0;
 
   // --- Time Distribution ---
-  data.contributionsCollection.commitContributionsByRepository.forEach(repoContrib => {
-    repoContrib.contributions.nodes.forEach(commit => {
-      totalSampledCommits += (commit.commitCount || 1);
-      const date = new Date(commit.occurredAt);
-      const hour = date.getHours();
-      const day = date.getDay();
-      hoursMap[hour] += (commit.commitCount || 1);
-      if (day === 0 || day === 6) weekendCommits += (commit.commitCount || 1);
-    });
+  const commitContributions = contributionCollection.commitContributionsByRepository || [];
+  commitContributions.forEach(repoContrib => {
+    if (repoContrib.contributions && repoContrib.contributions.nodes) {
+        repoContrib.contributions.nodes.forEach(commit => {
+            totalSampledCommits += (commit.commitCount || 1);
+            const date = new Date(commit.occurredAt);
+            const hour = date.getHours();
+            const day = date.getDay();
+            hoursMap[hour] += (commit.commitCount || 1);
+            if (day === 0 || day === 6) weekendCommits += (commit.commitCount || 1);
+        });
+    }
   });
 
   // Calculate Time Categories
@@ -514,14 +532,16 @@ export const analyzeUserData = (data: UserData, t: Translations): AnalysisResult
   let totalMergeTimeMs = 0;
   let totalAnalyzedPrs = 0;
   
-  const prNodes = data.contributionsCollection.pullRequestContributions.nodes;
+  const prNodes = contributionCollection.pullRequestContributions?.nodes || [];
   
   prNodes.forEach(node => {
      const pr = node.pullRequest;
+     if (!pr) return;
+
      totalAnalyzedPrs++;
-     totalAdditions += pr.additions;
-     totalDeletions += pr.deletions;
-     totalFilesChanged += pr.changedFiles;
+     totalAdditions += (pr.additions || 0);
+     totalDeletions += (pr.deletions || 0);
+     totalFilesChanged += (pr.changedFiles || 0);
      
      if (pr.state === 'MERGED' && pr.mergedAt) {
        mergedPrCount++;
@@ -543,12 +563,16 @@ export const analyzeUserData = (data: UserData, t: Translations): AnalysisResult
   let totalForks = 0;
   const allTopics = new Map<string, number>();
 
-  data.repositories.nodes.forEach(repo => {
-    totalStars += repo.stargazerCount;
-    totalForks += repo.forkCount;
-    repo.repositoryTopics.nodes.forEach(t => {
-        allTopics.set(t.topic.name, (allTopics.get(t.topic.name) || 0) + 1);
-    });
+  repoNodes.forEach(repo => {
+    totalStars += (repo.stargazerCount || 0);
+    totalForks += (repo.forkCount || 0);
+    if (repo.repositoryTopics && repo.repositoryTopics.nodes) {
+        repo.repositoryTopics.nodes.forEach(t => {
+            if (t.topic && t.topic.name) {
+                allTopics.set(t.topic.name, (allTopics.get(t.topic.name) || 0) + 1);
+            }
+        });
+    }
   });
 
   const topTopics: TopicStat[] = Array.from(allTopics.entries())
@@ -568,6 +592,8 @@ export const analyzeUserData = (data: UserData, t: Translations): AnalysisResult
 
   prNodes.forEach(node => {
     const pr = node.pullRequest;
+    if (!pr || !pr.repository || !pr.repository.owner) return;
+    
     const repo = pr.repository;
     const ownerLogin = repo.owner.login;
     const isOwnerMe = ownerLogin === data.login;
@@ -605,20 +631,20 @@ export const analyzeUserData = (data: UserData, t: Translations): AnalysisResult
     }
   });
 
-  if (!topOrganization && data.organizations.nodes.length > 0) {
+  if (!topOrganization && orgNodes.length > 0) {
     topOrganization = { 
-      name: data.organizations.nodes[0].name || data.organizations.nodes[0].login, 
+      name: orgNodes[0].name || orgNodes[0].login, 
       count: 0, 
-      avatarUrl: data.organizations.nodes[0].avatarUrl 
+      avatarUrl: orgNodes[0].avatarUrl 
     };
   }
 
   // Breakdown
   const breakdown = {
-    commits: data.contributionsCollection.totalCommitContributions,
-    issues: data.contributionsCollection.totalIssueContributions,
-    prs: data.contributionsCollection.totalPullRequestContributions,
-    reviews: data.contributionsCollection.totalPullRequestReviewContributions
+    commits: contributionCollection.totalCommitContributions || 0,
+    issues: contributionCollection.totalIssueContributions || 0,
+    prs: contributionCollection.totalPullRequestContributions || 0,
+    reviews: contributionCollection.totalPullRequestReviewContributions || 0
   };
 
   return {

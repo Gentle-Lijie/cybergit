@@ -55,7 +55,7 @@ export const generatePersonaAnalysis = async (
   `;
 
   // 1. Try Gemini if API Key is present
-  if (process.env.API_KEY) {
+  if (!process.env.API_KEY) {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const response = await ai.models.generateContent({
@@ -124,7 +124,30 @@ export const generatePersonaAnalysis = async (
     return JSON.parse(text) as AiPersona;
   }
 
-  // 2. Fallback to Pollinations.ai (OpenAI Compatible)
+  // 2. Try Custom API Proxy
+  try {
+    const response = await fetch('https://cybergit-api.u14.app/api/ai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: JSON.stringify(summaryData),
+        lang: lang
+      })
+    });
+
+    if (response.ok) {
+        const { data } = await response.json();
+        return data as AiPersona;
+    } else {
+        console.warn(`Custom API Proxy returned status ${response.status}. Falling back...`);
+    }
+  } catch (err) {
+    console.warn("Custom API Proxy failed, falling back to Pollinations:", err);
+  }
+
+  // 3. Fallback to Pollinations.ai (OpenAI Compatible)
   console.log("Using Pollinations.ai fallback (openai-fast)...");
   
   const jsonStructure = {

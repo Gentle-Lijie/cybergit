@@ -89,7 +89,7 @@ export default function App() {
         const data: UserData = await response.json();
         
         // Calculate derived data
-        const processedLangs = processLanguageData(data.repositories.nodes);
+        const processedLangs = processLanguageData(data.repositories?.nodes);
         const analysisResult = analyzeUserData(data, t);
 
         setUserData(data);
@@ -134,7 +134,7 @@ export default function App() {
           const { userData: cachedUserData, aiPersona: cachedAiPersona } = JSON.parse(cached);
           if (cachedUserData) {
             setUserData(cachedUserData);
-            setLanguages(processLanguageData(cachedUserData.repositories.nodes));
+            setLanguages(processLanguageData(cachedUserData.repositories?.nodes));
             if (cachedAiPersona) {
                setAiPersona(cachedAiPersona);
             }
@@ -183,7 +183,7 @@ export default function App() {
       const data = await fetchGitHubData(token, username);
       
       // Calculate derived data immediately for AI context
-      const processedLangs = processLanguageData(data.repositories.nodes);
+      const processedLangs = processLanguageData(data.repositories?.nodes);
       const analysisResult = analyzeUserData(data, t);
 
       setUserData(data);
