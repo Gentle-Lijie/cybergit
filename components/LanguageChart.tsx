@@ -2,12 +2,15 @@
 import React from 'react';
 import { ProcessedLanguage } from '../types';
 import { CountUp, AnimatedBar, useInView } from './Animators';
+import { Terminal } from 'lucide-react';
+import { Translations } from '../translations';
 
 interface LanguageChartProps {
   languages: ProcessedLanguage[];
+  t: Translations;
 }
 
-export const LanguageChart: React.FC<LanguageChartProps> = ({ languages }) => {
+export const LanguageChart: React.FC<LanguageChartProps> = ({ languages, t }) => {
   const topLanguages = languages.slice(0, 3);
   const otherLanguages = languages.slice(3);
   const { ref: tagsRef, isInView: tagsVisible } = useInView();
@@ -18,8 +21,8 @@ export const LanguageChart: React.FC<LanguageChartProps> = ({ languages }) => {
           {/* Main Chart Section */}
           <div className="flex-1 flex flex-col justify-between">
             <div className="flex items-center gap-3 mb-6">
-              <span className="material-symbols-outlined text-primary">terminal</span>
-              <h3 className="text-white font-bold tracking-widest text-sm uppercase">Language_Distribution</h3>
+              <Terminal className="text-primary w-5 h-5" />
+              <h3 className="text-white font-bold tracking-widest text-sm uppercase">{t.languages.title}</h3>
             </div>
             
             <div className="space-y-6">
@@ -41,7 +44,7 @@ export const LanguageChart: React.FC<LanguageChartProps> = ({ languages }) => {
               ))}
               {languages.length === 0 && (
                 <div className="text-primary/40 text-xs font-mono uppercase">
-                  No language data detected in sector.
+                  {t.languages.noData}
                 </div>
               )}
             </div>
@@ -51,7 +54,7 @@ export const LanguageChart: React.FC<LanguageChartProps> = ({ languages }) => {
           {otherLanguages.length > 0 && (
             <div className="md:w-1/3 flex flex-col justify-end">
                 <div className="text-[10px] text-gray-500 uppercase tracking-widest mb-3 border-b border-primary/10 pb-1">
-                   Secondary Protocols
+                   {t.languages.secondary}
                 </div>
                 <div className="flex flex-wrap gap-2 content-start" ref={tagsRef}>
                   {otherLanguages.map((lang, idx) => (

@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { toPng } from 'html-to-image';
 import { Layout } from './components/Layout';
 import { LoginForm } from './components/LoginForm';
 import { Hero } from './components/Hero';
@@ -9,11 +10,16 @@ import { Heatmap } from './components/Heatmap';
 import { HabitsSection } from './components/HabitsSection';
 import { Achievements } from './components/Achievements';
 import { CommunitySection } from './components/CommunitySection';
+import { PrAnalysis } from './components/PrAnalysis';
+import { ContributionBreakdown } from './components/ContributionBreakdown';
+import { ProjectGallery } from './components/ProjectGallery';
 import { AiIdentity } from './components/AiIdentity';
 import { ScrollReveal } from './components/ScrollReveal';
 import { fetchGitHubData, processLanguageData, analyzeUserData } from './services/githubService';
 import { generatePersonaAnalysis } from './services/geminiService';
-import type { UserData, ProcessedLanguage, AnalysisResult, AiPersona } from './types';
+import type { UserData, ProcessedLanguage, AnalysisResult, AiPersona, Language } from './types';
+import { translations } from './translations';
+import { Camera } from 'lucide-react';
 
 export default function App() {
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -23,25 +29,52 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingText, setLoadingText] = useState<string>('INITIALIZING CONNECTION...');
+  const [savingImage, setSavingImage] = useState(false);
+  const [lang, setLang] = useState<Language>('en');
 
-  const handleLogin = async (token: string, enableAi: boolean) => {
+  const t = translations[lang];
+
+  // Check URL for token on mount (Mock OAuth handling)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token') || params.get('access_token');
+    
+    // Clear URL to keep it clean
+    if (token) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        handleLogin(token, '', true);
+    }
+  }, []);
+
+  // Update loading text when language changes if currently loading
+  useEffect(() => {
+     if (loading) {
+       setLoadingText(t.loading.init);
+     }
+  }, [lang]);
+
+  const toggleLang = () => {
+    setLang(prev => prev === 'en' ? 'zh' : 'en');
+  };
+
+  const handleLogin = async (token: string, username: string, enableAi: boolean) => {
     setLoading(true);
     setError(null);
-    setLoadingText('ESTABLISHING SECURE HANDSHAKE...');
+    setLoadingText(t.loading.handshake);
     
     try {
       // 1. Fetch GitHub Data
-      setLoadingText('CONNECTING NEURA NETWORKS...');
-      const data = await fetchGitHubData(token, undefined);
+      setLoadingText(t.loading.connecting);
+      const data = await fetchGitHubData(token, username);
       setUserData(data);
       setLanguages(processLanguageData(data.repositories.nodes));
-      setAnalysis(analyzeUserData(data));
+      setAnalysis(analyzeUserData(data, t));
 
       // 2. Generate AI Persona (Only if enabled)
       if (enableAi) {
-        setLoadingText('PROCESSING AI PROFILE...');
+        setLoadingText(t.loading.profile);
         try {
-          const persona = await generatePersonaAnalysis(data);
+          const persona = await generatePersonaAnalysis(data, lang);
           setAiPersona(persona);
         } catch (aiErr) {
           console.error("AI Generation failed", aiErr);
@@ -57,10 +90,48 @@ export default function App() {
     }
   };
 
+  // Re-analyze data when language changes if user is already logged in
+  useEffect(() => {
+    if (userData) {
+      setAnalysis(analyzeUserData(userData, t));
+      // Note: We don't regenerate AI persona to save API calls, unless we want to forcedly re-gen
+    }
+  }, [lang, userData]);
+
+
+  const handleSaveImage = async () => {
+    setSavingImage(true);
+    const rootElement = document.getElementById('root');
+    if (!rootElement) return;
+
+    try {
+        // Wait a brief moment for any pending animations/renders
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const dataUrl = await toPng(rootElement, {
+            quality: 0.95,
+            backgroundColor: '#000000',
+            filter: (node) => {
+                // Exclude elements with this class from the screenshot
+                return !node.classList?.contains('hide-on-screenshot');
+            }
+        });
+
+        const link = document.createElement('a');
+        link.download = `cybergit-report-${userData?.login || '2077'}.png`;
+        link.href = dataUrl;
+        link.click();
+    } catch (err) {
+        console.error('Failed to save image:', err);
+    } finally {
+        setSavingImage(false);
+    }
+  };
+
   return (
-    <Layout userData={userData} loading={loading}>
+    <Layout userData={userData} loading={loading} lang={lang} toggleLang={toggleLang} t={t}>
       {!userData && !loading && (
-        <LoginForm onLogin={handleLogin} isLoading={loading} error={error} />
+        <LoginForm onLogin={handleLogin} isLoading={loading} error={error} t={t} />
       )}
 
       {loading && (
@@ -86,11 +157,19 @@ export default function App() {
       )}
 
       {userData && analysis && !loading && (
+        <>
         <div className="flex flex-col gap-8 md:gap-12">
           {/* Identity - Top Section */}
           <ScrollReveal>
-            <Hero user={userData} />
+            <Hero user={userData} t={t} />
           </ScrollReveal>
+
+          {/* AI Identity Dossier */}
+          {aiPersona && (
+            <ScrollReveal delay={200}>
+              <AiIdentity persona={aiPersona} t={t} />
+            </ScrollReveal>
+          )}
 
           {/* Core Metrics & Annual Output */}
           <ScrollReveal>
@@ -100,64 +179,81 @@ export default function App() {
               issues={userData.contributionsCollection.totalIssueContributions}
               prs={userData.contributionsCollection.totalPullRequestContributions}
               reviews={userData.contributionsCollection.totalPullRequestReviewContributions}
+              t={t}
             />
           </ScrollReveal>
 
           {/* Language Analysis */}
           <ScrollReveal>
-            <LanguageChart languages={languages} />
+            <LanguageChart languages={languages} t={t} />
           </ScrollReveal>
 
           {/* Heatmap */}
           <ScrollReveal>
-            <Heatmap calendar={userData.contributionsCollection.contributionCalendar} />
+            <Heatmap calendar={userData.contributionsCollection.contributionCalendar} t={t} />
           </ScrollReveal>
 
-          {/* Habits Analysis */}
+          {/* PR Efficiency */}
           <ScrollReveal>
-            <HabitsSection analysis={analysis} />
+            <PrAnalysis analysis={analysis} t={t} />
           </ScrollReveal>
 
-          {/* Community & Influence */}
+          {/* Contribution Types */}
           <ScrollReveal>
-            <CommunitySection analysis={analysis} />
+            <ContributionBreakdown analysis={analysis} t={t} />
           </ScrollReveal>
 
           {/* Achievements */}
           <ScrollReveal>
-            <Achievements analysis={analysis} />
+            <Achievements analysis={analysis} t={t} />
           </ScrollReveal>
 
-          {/* AI Identity Dossier */}
-          {aiPersona && (
-            <ScrollReveal delay={200}>
-              <AiIdentity persona={aiPersona} />
-            </ScrollReveal>
-          )}
+          {/* Community & Influence */}
+          <ScrollReveal>
+            <CommunitySection analysis={analysis} organizations={userData.organizations} t={t} />
+          </ScrollReveal>
+
+          {/* Projects & Topics */}
+          <ScrollReveal>
+             <ProjectGallery analysis={analysis} t={t} />
+          </ScrollReveal>
 
           <ScrollReveal delay={300}>
-            <div className="text-center">
-              <button 
-                onClick={() => { setUserData(null); setLanguages([]); setAnalysis(null); setAiPersona(null); }}
-                className="text-xs text-primary/40 hover:text-primary border border-primary/20 hover:border-primary px-4 py-2 rounded transition-all bg-black/50"
-              >
-                TERMINATE_SESSION
-              </button>
+            <div className="flex flex-col items-center gap-4 hide-on-screenshot mb-8 md:mb-12">
+              <div className="flex gap-4">
+                <button 
+                  onClick={handleSaveImage}
+                  disabled={savingImage}
+                  className="flex items-center gap-2 text-xs text-black bg-primary hover:bg-white border border-primary px-4 py-2 rounded transition-all font-bold shadow-neon disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Camera className="w-4 h-4" />
+                  {savingImage ? t.controls.capturing : t.controls.snapshot}
+                </button>
+                
+                <button 
+                  onClick={() => { setUserData(null); setLanguages([]); setAnalysis(null); setAiPersona(null); }}
+                  disabled={savingImage}
+                  className="text-xs text-primary/40 hover:text-primary border border-primary/20 hover:border-primary px-4 py-2 rounded transition-all bg-black/50"
+                >
+                  {t.controls.terminate}
+                </button>
+              </div>
             </div>
           </ScrollReveal>
+        </div>
 
-          <div className="border-t border-primary/20 bg-black/90 py-8 px-6 text-center relative z-10">
+          <div className="border-t border-primary/20 bg-black/90 py-6 text-center relative z-10">
             <div className="max-w-7xl mx-auto flex flex-col items-center gap-4">
               <div className="flex items-center gap-2 text-primary/60 font-mono text-xs">
                 <span className="animate-pulse">_</span>
-                <span>SYSTEM CONNECTED</span>
+                <span>{t.controls.systemConnected}</span>
               </div>
               <p className="text-[10px] text-gray-600 uppercase tracking-widest">
-                Generated by u14.app © 2025
+                {t.layout.footer}
               </p>
             </div>
           </div>
-        </div>
+        </>
       )}
     </Layout>
   );

@@ -2,18 +2,21 @@
 import React from 'react';
 import { AiPersona } from '../types';
 import { Typewriter } from './Animators';
+import { Contact, IdCard } from 'lucide-react';
+import { Translations } from '../translations';
 
 interface AiIdentityProps {
   persona: AiPersona;
+  t: Translations;
 }
 
-export const AiIdentity: React.FC<AiIdentityProps> = ({ persona }) => {
+export const AiIdentity: React.FC<AiIdentityProps> = ({ persona, t }) => {
   if (!persona) return null;
 
   // Destructure with default values to handle potential missing data from AI
   const finalPersona = persona.finalPersona || { 
-    title: 'UNIDENTIFIED_ENTITY', 
-    summary: 'Profile data incomplete.', 
+    title: t.ai.unidentified, 
+    summary: t.ai.incomplete, 
     keywords: [] 
   };
   
@@ -39,8 +42,8 @@ export const AiIdentity: React.FC<AiIdentityProps> = ({ persona }) => {
       <div className="flex items-center gap-4 mb-8">
         <div className="h-[1px] flex-grow bg-primary/20" />
         <h3 className="text-primary font-bold tracking-widest text-sm uppercase flex items-center gap-2">
-          <span className="material-symbols-outlined text-sm">psychology</span>
-          Neural_Profile_Analysis
+          <Contact className="w-4 h-4" />
+          {t.ai.title}
         </h3>
         <div className="h-[1px] flex-grow bg-primary/20" />
       </div>
@@ -49,8 +52,8 @@ export const AiIdentity: React.FC<AiIdentityProps> = ({ persona }) => {
         {/* Main Badge */}
         <div className="md:col-span-4 bg-surface-dark border border-primary/50 p-6 flex flex-col justify-center items-center text-center relative overflow-hidden">
             <div className="absolute inset-0 bg-primary/5 z-0" />
-            <span className="material-symbols-outlined text-6xl text-primary mb-4 z-10">badge</span>
-            <div className="text-xs text-primary/60 uppercase tracking-widest z-10">Classification</div>
+            <IdCard className="w-16 h-16 text-primary mb-4 z-10" />
+            <div className="text-xs text-primary/60 uppercase tracking-widest z-10">{t.ai.classification}</div>
             <h2 className="text-2xl font-black text-white uppercase tracking-tighter z-10 my-2 min-h-[32px]">
                 <Typewriter text={finalPersona.title} speed={40} delay={0} cursor={false} />
             </h2>
@@ -62,25 +65,25 @@ export const AiIdentity: React.FC<AiIdentityProps> = ({ persona }) => {
         {/* Quick Traits */}
         <div className="md:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-black border-l-2 border-primary/30 p-4">
-                <div className="text-primary font-bold text-xs uppercase mb-1">{veteran.title}</div>
+                <div className="text-primary font-bold text-xs uppercase mb-1">{veteran.title || t.ai.veteran}</div>
                 <div className="text-[10px] text-gray-400 min-h-[40px]">
                     <Typewriter text={veteran.description} speed={15} delay={1200} />
                 </div>
             </div>
             <div className="bg-black border-l-2 border-blue-500/30 p-4">
-                <div className="text-blue-400 font-bold text-xs uppercase mb-1">Specialist</div>
+                <div className="text-blue-400 font-bold text-xs uppercase mb-1">{t.ai.specialist}</div>
                 <div className="text-[10px] text-gray-400 min-h-[40px]">
                      <Typewriter text={specialist.description} speed={15} delay={1600} />
                 </div>
             </div>
             <div className="bg-black border-l-2 border-purple-500/30 p-4">
-                <div className="text-purple-400 font-bold text-xs uppercase mb-1">Creator</div>
+                <div className="text-purple-400 font-bold text-xs uppercase mb-1">{t.ai.creator}</div>
                 <div className="text-[10px] text-gray-400 min-h-[40px]">
                      <Typewriter text={creator.description} speed={15} delay={2000} />
                 </div>
             </div>
             <div className="bg-black border-l-2 border-yellow-500/30 p-4">
-                <div className="text-yellow-400 font-bold text-xs uppercase mb-1">AI Surfer</div>
+                <div className="text-yellow-400 font-bold text-xs uppercase mb-1">{t.ai.surfer}</div>
                 <div className="text-[10px] text-gray-400 min-h-[40px]">
                      <Typewriter text={aiSurfer.description} speed={15} delay={2400} />
                 </div>

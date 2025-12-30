@@ -1,8 +1,8 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { UserData, AiPersona } from '../types';
+import { UserData, AiPersona, Language } from '../types';
 
-export const generatePersonaAnalysis = async (userData: UserData): Promise<AiPersona> => {
+export const generatePersonaAnalysis = async (userData: UserData, lang: Language = 'en'): Promise<AiPersona> => {
   if (!process.env.API_KEY) {
      throw new Error("API_KEY not found in environment.");
   }
@@ -27,8 +27,10 @@ export const generatePersonaAnalysis = async (userData: UserData): Promise<AiPer
   const systemPrompt = `
     You are a cyberpunk profiler for the year 2077. Analyze this GitHub user data and create a deep, witty, "character-driven" annual report persona.
     
-    CRITICAL INSTRUCTION: Keep all descriptions extremely concise. Maximum 15 words per description. Bullet point style.
+    CRITICAL INSTRUCTION: Keep all descriptions extremely concise. Maximum 36 words per description. Bullet point style.
     
+    The output MUST be in ${lang === 'zh' ? 'Chinese (Simplified)' : 'English'}.
+
     1. The Veteran: Analyze 'createdAt' and 'location'.
     2. The Specialist: Analyze primary languages. Identify niche/retro languages (like Smarty) as "surprises".
     3. The Creator: Analyze top projects by stars/forks. Calculate fork ratio.

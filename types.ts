@@ -1,8 +1,11 @@
 
+export type Language = 'en' | 'zh';
+
 export interface ContributionDay {
   contributionCount: number;
   date: string;
   color: string;
+  weekday: number;
 }
 
 export interface Week {
@@ -24,23 +27,43 @@ export interface LanguageEdge {
   node: LanguageNode;
 }
 
-export interface RepositoryNode {
-  name: string;
-  stargazerCount: number;
-  forkCount: number;
-  languages: {
-    edges: LanguageEdge[];
+export interface RepositoryTopic {
+  topic: {
+    name: string;
   };
 }
 
-// Updated to match ContributionsCollection schema
+export interface RepositoryNode {
+  name: string;
+  url: string;
+  description: string | null;
+  isPrivate: boolean;
+  stargazerCount: number;
+  forkCount: number;
+  pushedAt: string;
+  diskUsage: number;
+  owner: {
+    login: string;
+  };
+  primaryLanguage: LanguageNode | null;
+  languages: {
+    edges: LanguageEdge[];
+  };
+  repositoryTopics: {
+    nodes: RepositoryTopic[];
+  };
+}
+
+// Minimal repository info inside contributions
 export interface ContributionRepository {
   name: string;
   isPrivate: boolean;
   stargazerCount: number;
+  primaryLanguage: LanguageNode | null;
   owner: {
     login: string;
-    __typename: string;
+    avatarUrl?: string;
+    __typename?: string;
   };
 }
 
@@ -48,19 +71,29 @@ export interface PullRequestContributionNode {
   pullRequest: {
     title: string;
     state: string;
+    createdAt: string;
     mergedAt: string | null;
-    repository: ContributionRepository;
+    additions: number;
+    deletions: number;
+    changedFiles: number;
+    repository: ContributionRepository & {
+      languages: {
+        nodes: LanguageNode[];
+      };
+    };
   };
 }
 
 export interface CommitContribution {
   occurredAt: string;
+  commitCount: number;
 }
 
 export interface RepoCommitContribution {
   repository: {
     name: string;
-    stargazerCount: number;
+    isPrivate: boolean;
+    primaryLanguage: LanguageNode | null;
   };
   contributions: {
     nodes: CommitContribution[];
@@ -71,6 +104,7 @@ export interface OrganizationNode {
   name: string;
   login: string;
   avatarUrl: string;
+  websiteUrl: string | null;
 }
 
 export interface UserData {
@@ -86,27 +120,31 @@ export interface UserData {
     nodes: OrganizationNode[];
   };
   contributionsCollection: {
-    contributionCalendar: ContributionCalendar;
     totalCommitContributions: number;
     totalIssueContributions: number;
     totalPullRequestContributions: number;
     totalPullRequestReviewContributions: number;
+    totalRepositoriesWithContributedCommits: number;
+    contributionCalendar: ContributionCalendar;
     commitContributionsByRepository: RepoCommitContribution[];
     pullRequestContributions: {
       nodes: PullRequestContributionNode[];
+    };
+    pullRequestReviewContributions: {
+      nodes: {
+        pullRequest: {
+          title: string;
+          repository: {
+            name: string;
+            owner: { login: string };
+          };
+        };
+      }[];
     };
   };
   repositories: {
     totalCount: number;
     nodes: RepositoryNode[];
-  };
-  // Keeping direct pullRequests for line count stats if needed, 
-  // but main logic moves to contributionsCollection
-  pullRequests: {
-    nodes: {
-      additions: number;
-      deletions: number;
-    }[];
   };
 }
 
@@ -117,13 +155,22 @@ export interface ProcessedLanguage {
   percentage: number;
 }
 
+export interface TopicStat {
+  name: string;
+  count: number;
+}
+
 export interface AnalysisResult {
+  // User Basics
+  accountAgeYears: number;
+  followers: number;
+  
+  // Activity
   longestStreak: number;
   currentStreak: number;
   busiestDay: string;
   topHour: number;
   hoursDistribution: number[]; 
-  // Enhanced Chronotype Stats
   timeCategory: string;
   timeDescription: string;
   periodBreakdown: {
@@ -132,29 +179,52 @@ export interface AnalysisResult {
     afternoon: number;// 12-18
     evening: number;  // 18-24
   };
-  
   isNightOwl: boolean;
   isWeekendWarrior: boolean;
+  weekendPercentage: number;
+  
+  // PR & Code Deep Dive
   totalAdditions: number;
   totalDeletions: number;
   refactorRatio: number;
+  avgPrSize: number; // Average additions + deletions
+  avgPrFiles: number;
+  prMergeRate: number; // Percentage
+  avgMergeTimeHours: number; // Average time to merge
+  
+  // Contribution Breakdown
+  breakdown: {
+    commits: number;
+    issues: number;
+    prs: number;
+    reviews: number;
+  };
+
+  // Projects & Influence
   hottestProject: string;
   totalStars: number;
   totalForks: number;
-  // New Community Stats
-  openSourcePRs: number; // External Public
-  orgPRs: number;        // Organization owned (public or private)
-  personalPRs: number;   // Owned by user
-  impactRepo: {          // Highest starred repo contributed to
+  avgRepoSize: number; // KB
+  privateRepoRatio: number; // 0-1
+  
+  // Community Stats
+  openSourcePRs: number; 
+  orgPRs: number;       
+  personalPRs: number;   
+  impactRepo: {          
     name: string;
     owner: string;
     stars: number;
   } | null;
-  topOrganization: {     // Org with most contributions
+  topOrganization: {     
     name: string;
     count: number;
     avatarUrl: string;
   } | null;
+  
+  // Content
+  topTopics: TopicStat[];
+  topReposList: RepositoryNode[]; // For gallery
 }
 
 // AI Report Types

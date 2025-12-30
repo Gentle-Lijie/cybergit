@@ -1,14 +1,19 @@
 
 import React, { useEffect, useRef } from 'react';
-import type { UserData } from '../types';
+import type { UserData, Language } from '../types';
+import { Translations } from '../translations';
+import { Braces } from 'lucide-react';
 
 interface LayoutProps {
   loading: boolean
   userData: UserData | null,
   children: React.ReactNode;
+  lang: Language;
+  toggleLang: () => void;
+  t: Translations;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ loading, userData, children }) => {
+export const Layout: React.FC<LayoutProps> = ({ loading, userData, children, lang, toggleLang, t }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const parallaxRef = useRef<HTMLDivElement>(null);
 
@@ -98,16 +103,20 @@ export const Layout: React.FC<LayoutProps> = ({ loading, userData, children }) =
       <header className="fixed top-0 w-full z-40 bg-black/80 backdrop-blur-md border-b border-primary/20 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
           <div className="flex items-center gap-2 md:gap-3">
-            <span className="material-symbols-outlined text-primary text-2xl md:text-3xl animate-pulse">data_object</span>
+            <Braces className="text-primary w-6 h-6 md:w-8 md:h-8 animate-pulse" />
             <div className="flex flex-col">
-              <h1 className="text-primary font-bold tracking-[0.2em] text-xs md:text-sm leading-none">GITHUB REPORT</h1>
-              <span className="text-[9px] md:text-[10px] text-primary/60 tracking-widest">DATA_BUILD.2025</span>
+              <h1 className="text-primary font-bold tracking-[0.2em] text-xs md:text-sm leading-none">{t.layout.title}</h1>
+              <span className="text-[9px] md:text-[10px] text-primary/60 tracking-widest">{t.layout.build}</span>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
-            <div className="h-1.5 w-1.5 md:h-2 md:w-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-[9px] md:text-[10px] text-primary font-bold">CONNECTED</span>
+            <button 
+              onClick={toggleLang}
+              className="px-2 py-1 text-[10px] font-mono border border-primary/40 text-primary hover:bg-primary hover:text-black transition-colors rounded"
+            >
+              {lang === 'en' ? 'EN / 中文' : '中文 / EN'}
+            </button>
           </div>
         </div>
       </header>

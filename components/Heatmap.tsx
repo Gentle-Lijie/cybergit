@@ -2,12 +2,15 @@
 import React, { useMemo } from 'react';
 import { ContributionCalendar } from '../types';
 import { useInView } from './Animators';
+import { Calendar } from 'lucide-react';
+import { Translations } from '../translations';
 
 interface HeatmapProps {
   calendar: ContributionCalendar;
+  t: Translations;
 }
 
-export const Heatmap: React.FC<HeatmapProps> = ({ calendar }) => {
+export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
   const { ref, isInView } = useInView({ threshold: 0.2 });
 
   // Filter for year 2025 only
@@ -46,6 +49,7 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar }) => {
       const month = date.getMonth();
       // If month changes or it's the first week, add a label
       if (month !== lastMonth) {
+        // Use browser locale, or fallback to english short month if needed, but let's stick to simple
         const monthName = date.toLocaleString('en-US', { month: 'short' }).toUpperCase();
         labels.push({ name: monthName, weekIndex: index });
         lastMonth = month;
@@ -59,14 +63,14 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar }) => {
       <div className="flex flex-col md:flex-row justify-between items-start mb-6">
         <div>
           <h3 className="text-primary font-bold tracking-widest text-sm uppercase flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">calendar_month</span>
-            Temporal_Activity_Log
+            <Calendar className="w-4 h-4" />
+            {t.heatmap.title}
           </h3>
-          <p className="text-[10px] text-gray-500 mt-1 uppercase">Activity Log // 2025 Cycle</p>
+          <p className="text-[10px] text-gray-500 mt-1 uppercase">{t.heatmap.subtitle}</p>
         </div>
         
         <div className="hidden sm:flex items-center gap-2 text-[10px] text-gray-500 mt-4 md:mt-0">
-          <span>NULL</span>
+          <span>{t.heatmap.null}</span>
           <div className="flex gap-1">
             <div className="w-3 h-3 bg-[#0d110d] border border-primary/10"></div>
             <div className="w-3 h-3 bg-[#003300] border border-primary/20"></div>
@@ -74,7 +78,7 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar }) => {
             <div className="w-3 h-3 bg-[#009900] border border-primary/40"></div>
             <div className="w-3 h-3 bg-[#00FF41] shadow-neon"></div>
           </div>
-          <span>MAX</span>
+          <span>{t.heatmap.max}</span>
         </div>
       </div>
 
