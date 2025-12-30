@@ -55,7 +55,7 @@ export const generatePersonaAnalysis = async (
   `;
 
   // 1. Try Gemini if API Key is present
-  if (!process.env.API_KEY) {
+  if (process.env.API_KEY) {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const response = await ai.models.generateContent({
