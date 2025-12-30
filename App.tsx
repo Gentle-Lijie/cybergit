@@ -20,9 +20,10 @@ import { generatePersonaAnalysis } from './services/geminiService';
 import { audioService } from './services/audioService';
 import type { UserData, ProcessedLanguage, AnalysisResult, AiPersona, Language } from './types';
 import { translations } from './translations';
-import { Camera } from 'lucide-react';
+import { Camera, Share2 } from 'lucide-react';
 
 const CACHE_KEY = 'cybergit_report_cache_v1';
+const API_BASE = 'https://cybergit-api.u14.app/api';
 
 export default function App() {
   // Initialize language based on browser settings
@@ -43,8 +44,11 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [loadingText, setLoadingText] = useState<string>(t.loading.init);
   const [savingImage, setSavingImage] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const [isMuted, setIsMuted] = useState(true); // Default muted
+  const [showLogin, setShowLogin] = useState(false); // Controls login form visibility/animation
 
   // Initialize Audio Context on first interaction
   useEffect(() => {
@@ -69,17 +73,61 @@ export default function App() {
     if (!muted) audioService.playClick();
   };
 
-  // Check URL for token on mount (Mock OAuth handling)
+  // Function to load report data from a shared key
+  const loadSharedReport = async (username: string) => {
+    setLoading(true);
+    setLoadingText(t.loading.retrieving);
+    setIsDemo(true); // Treat as demo/read-only
+    setShowLogin(false); // Ensure login is hidden while loading
+
+    try {
+        const response = await fetch(`${API_BASE}/read?key=${username}`);
+        if (!response.ok) {
+            throw new Error(response.status === 404 ? 'Report not found in archive' : 'Data corruption detected');
+        }
+        
+        const data: UserData = await response.json();
+        
+        // Calculate derived data
+        const processedLangs = processLanguageData(data.repositories.nodes);
+        const analysisResult = analyzeUserData(data, t);
+
+        setUserData(data);
+        setLanguages(processedLangs);
+        setAnalysis(analysisResult);
+
+        // Attempt to generate AI persona using fallback (no api key on shared view)
+        // or skipping if it feels too heavy. Let's try to regenerate it for complete experience.
+        try {
+            const persona = await generatePersonaAnalysis(data, analysisResult, processedLangs, lang);
+            setAiPersona(persona);
+        } catch (aiErr) {
+            console.warn("Shared view AI skipped:", aiErr);
+        }
+
+    } catch (err: any) {
+        setError(err.message || 'Connection failed');
+        setShowLogin(true); // Show login on error so user isn't stuck
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  // Check URL for token or user param on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token') || params.get('access_token');
+    const sharedUser = params.get('user');
     
-    // Clear URL to keep it clean
     if (token) {
+        // Clear URL to keep it clean
         window.history.replaceState({}, document.title, window.location.pathname);
         handleLogin(token, '', true);
+    } else if (sharedUser) {
+        // Load shared data
+        loadSharedReport(sharedUser);
     } else {
-      // If no token in URL, check cache
+      // If no token/user in URL, check cache
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         try {
@@ -91,11 +139,18 @@ export default function App() {
                setAiPersona(cachedAiPersona);
             }
             setIsDemo(false);
+          } else {
+            // Cache invalid
+            setShowLogin(true);
           }
         } catch (e) {
           console.error("Cache parse error", e);
           localStorage.removeItem(CACHE_KEY);
+          setShowLogin(true);
         }
+      } else {
+        // No cache, no params -> Show Login immediately
+        setShowLogin(true);
       }
     }
   }, []);
@@ -117,6 +172,7 @@ export default function App() {
     setLoading(true);
     setError(null);
     setLoadingText(t.loading.handshake);
+    setShowLogin(false); // Hide login form
     
     const isDemoLogin = token === 'demo';
     setIsDemo(isDemoLogin);
@@ -159,6 +215,7 @@ export default function App() {
 
     } catch (err: any) {
       setError(err.message || 'Connection failed');
+      setShowLogin(true); // Re-show login on failure
     } finally {
       setLoading(false);
     }
@@ -170,6 +227,37 @@ export default function App() {
       setAnalysis(analyzeUserData(userData, t));
     }
   }, [lang, userData]);
+
+  const handleShare = async () => {
+    if (!userData) return;
+    audioService.playClick();
+    setIsSharing(true);
+    setShareSuccess(false);
+
+    try {
+        const response = await fetch(`${API_BASE}/save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(userData)
+        });
+
+        if (!response.ok) {
+            throw new Error('Upload failed');
+        }
+
+        const url = `${window.location.origin}${window.location.pathname}?user=${userData.login}`;
+        await navigator.clipboard.writeText(url);
+        setShareSuccess(true);
+        setTimeout(() => setShareSuccess(false), 3000);
+    } catch (err) {
+        console.error("Share failed", err);
+        alert("UPLINK FAILED: Unable to upload data to matrix.");
+    } finally {
+        setIsSharing(false);
+    }
+  };
 
 
   const handleSaveImage = async () => {
@@ -214,6 +302,10 @@ export default function App() {
         localStorage.removeItem(CACHE_KEY);
     }
     setIsDemo(false);
+    setShowLogin(true); // Show login form with animation
+    
+    // Clean URL params if any
+    window.history.replaceState({}, document.title, window.location.pathname);
   };
 
   return (
@@ -226,7 +318,7 @@ export default function App() {
       isMuted={isMuted}
       toggleMute={toggleMute}
     >
-      {!userData && !loading && (
+      {!userData && !loading && showLogin && (
         <LoginForm onLogin={handleLogin} isLoading={loading} error={error} t={t} />
       )}
 
@@ -316,20 +408,32 @@ export default function App() {
 
           <ScrollReveal delay={300}>
             {/* Action Buttons - Hidden in Screenshot */}
-            <div className="flex justify-center gap-4 mb-8 md:mb-12 hide-on-screenshot">
+            <div className="flex flex-wrap justify-center gap-4 mb-8 md:mb-12 hide-on-screenshot">
               <button 
                 onClick={handleSaveImage}
-                disabled={savingImage}
+                disabled={savingImage || isSharing}
                 onMouseEnter={() => audioService.playHover()}
-                className="flex items-center gap-2 text-xs text-black bg-primary hover:bg-white border border-primary px-4 py-2 rounded transition-all font-bold shadow-neon disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 text-xs border bg-black text-primary border-primary hover:bg-primary hover:text-black px-4 py-2 rounded transition-all font-bold shadow-neon disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Camera className="w-4 h-4" />
                 {savingImage ? t.controls.capturing : t.controls.snapshot}
               </button>
+
+              {!isDemo && (
+                <button 
+                  onClick={handleShare}
+                  disabled={isSharing || savingImage}
+                  onMouseEnter={() => audioService.playHover()}
+                  className={`flex items-center gap-2 text-xs border px-4 py-2 rounded transition-all font-bold shadow-neon disabled:opacity-50 disabled:cursor-not-allowed ${shareSuccess ? 'bg-white text-black border-white' : 'bg-black text-blue-400 border-blue-400 hover:bg-blue-400 hover:text-black'}`}
+                >
+                  <Share2 className="w-4 h-4" />
+                  {isSharing ? t.controls.sharing : (shareSuccess ? t.controls.linkCopied : t.controls.share)}
+                </button>
+              )}
               
               <button 
                 onClick={handleTerminate}
-                disabled={savingImage}
+                disabled={savingImage || isSharing}
                 onMouseEnter={() => audioService.playHover()}
                 className="text-xs text-primary/40 hover:text-primary border border-primary/20 hover:border-primary px-4 py-2 rounded transition-all bg-black/50"
               >

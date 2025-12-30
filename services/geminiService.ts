@@ -9,7 +9,6 @@ export const generatePersonaAnalysis = async (
   lang: Language = 'en'
 ): Promise<AiPersona> => {
   // Construct a highly optimized summary payload using processed stats
-  // This avoids sending raw data (like 100+ repo objects) to the LLM
   const summaryData = {
     identity: {
         login: userData.login,
@@ -39,8 +38,6 @@ export const generatePersonaAnalysis = async (
     // Included flat list for name-based keyword detection (AI Surfer persona)
     all_repo_names: userData.repositories.nodes.map(r => r.name)
   };
-
-  console.log("AI Summary Payload:", summaryData);
 
   const systemPrompt = `
     I am a cyberpunk analyst from 2077, clad in a fluorescent exoskeleton. My mind navigates the sea of ​​code, using cold data as my pen to sculpt the unique digital soul of every developer in the cyber world. I excel at deeply analyzing GitHub user behavior patterns, revealing their underlying coding philosophies, technical expertise, and community influence. My analytical style is profound, humorous, and futuristic, focusing on people and infusing each report with soul and insight.

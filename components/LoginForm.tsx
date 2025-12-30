@@ -33,7 +33,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading, error,
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] animate-[fade-in-up_0.5s_ease-out]">
+    <div className="flex flex-col items-center justify-center min-h-[60vh] animate-cyber-open origin-center">
       <div className="w-full max-w-md p-6 md:p-8 bg-surface-dark border border-primary/30 shadow-neon relative group">
         {/* Decorative corner markers */}
         <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-primary"></div>

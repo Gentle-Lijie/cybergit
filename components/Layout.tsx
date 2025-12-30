@@ -29,23 +29,31 @@ export const Layout: React.FC<LayoutProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const parallaxRef = useRef<HTMLDivElement>(null);
 
+  // Determine if matrix background should be shown
+  const showMatrix = loading || !userData;
+
+  // Parallax Effect Logic (Runs once)
   useEffect(() => {
-    // Parallax Effect Logic
     const handleScroll = () => {
       const scrolled = window.scrollY;
-      
       // Visual Parallax
       if (parallaxRef.current) {
-        // Move the grid background slowly (0.15 speed) to create depth
         parallaxRef.current.style.transform = `translateY(${scrolled * 0.15}px)`;
       }
     };
 
     window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
     
-    // Canvas Matrix Rain Logic
+  // Canvas Matrix Rain Logic (Runs when canvas availability changes)
+  useEffect(() => {
+    // Only run if the canvas is supposed to be visible
+    if (!showMatrix) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
+    
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -88,13 +96,12 @@ export const Layout: React.FC<LayoutProps> = ({
     return () => {
       clearInterval(interval);
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('scroll', handleScroll);
     };
-  }, []);
+  }, [showMatrix]); // Depend on the derived visibility state, not raw data
 
   return (
     <>
-      {loading || !userData ? <canvas 
+      {showMatrix ? <canvas 
         ref={canvasRef} 
         className="fixed top-0 left-0 w-full h-full opacity-50 pointer-events-none" 
       /> : null}
@@ -124,10 +131,11 @@ export const Layout: React.FC<LayoutProps> = ({
             </div>
           </div>
           
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-4">
              <a
                href="https://github.com/Amery2010/cybergit"
                target="_blank"
+               rel="noopener noreferrer"
                className="text-primary/70 hover:text-primary transition-colors p-1"
                onMouseEnter={() => audioService.playHover()}
                aria-label="GitHub Repository"
@@ -148,7 +156,7 @@ export const Layout: React.FC<LayoutProps> = ({
             <button 
               onClick={toggleLang}
               onMouseEnter={() => audioService.playHover()}
-              className="px-2 py-2 ml-1 text-[10px] font-mono border border-primary/40 text-primary hover:bg-primary hover:text-black transition-colors rounded"
+              className="px-2 py-1 text-[10px] font-mono border border-primary/40 text-primary hover:bg-primary hover:text-black transition-colors rounded"
             >
               {lang === 'en' ? 'EN / 中文' : '中文 / EN'}
             </button>
