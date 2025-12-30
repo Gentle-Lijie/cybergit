@@ -86,7 +86,19 @@ export default function App() {
             throw new Error(response.status === 404 ? 'Report not found in archive' : 'Data corruption detected');
         }
         
-        const { data }: { success: string, data: UserData } = await response.json();
+        const responseJson = await response.json();
+        // Use loose typing to extract potential AI cache
+        const rawData = responseJson.data;
+
+        // Extract AI cache if present
+        let cachedPersona: AiPersona | null = null;
+        if (rawData.aiPersonaCache) {
+            cachedPersona = rawData.aiPersonaCache;
+            // Remove it from the object to conform to UserData type, though strictly not necessary for runtime
+            delete rawData.aiPersonaCache;
+        }
+        
+        const data = rawData as UserData;
         
         // Calculate derived data
         const processedLangs = processLanguageData(data.repositories?.nodes);
@@ -96,13 +108,17 @@ export default function App() {
         setLanguages(processedLangs);
         setAnalysis(analysisResult);
 
-        // Attempt to generate AI persona using fallback (no api key on shared view)
-        // or skipping if it feels too heavy. Let's try to regenerate it for complete experience.
-        try {
-            const persona = await generatePersonaAnalysis(data, analysisResult, processedLangs, lang);
-            setAiPersona(persona);
-        } catch (aiErr) {
-            console.warn("Shared view AI skipped:", aiErr);
+        // If we found cached AI persona, use it directly. Otherwise try to generate.
+        if (cachedPersona) {
+            setAiPersona(cachedPersona);
+        } else {
+            // Attempt to generate AI persona using fallback (no api key on shared view)
+            try {
+                const persona = await generatePersonaAnalysis(data, analysisResult, processedLangs, lang);
+                setAiPersona(persona);
+            } catch (aiErr) {
+                console.warn("Shared view AI skipped:", aiErr);
+            }
         }
 
     } catch (err: any) {
@@ -235,12 +251,18 @@ export default function App() {
     setShareSuccess(false);
 
     try {
+        // Bundle userData with aiPersona for persistence
+        const payload = {
+            ...userData,
+            aiPersonaCache: aiPersona
+        };
+
         const response = await fetch(`${API_BASE}/save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(userData)
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
