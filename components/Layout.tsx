@@ -2,7 +2,7 @@
 import React, { useEffect, useRef } from 'react';
 import type { UserData, Language } from '../types';
 import { Translations } from '../translations';
-import { Braces, Volume2, VolumeX } from 'lucide-react';
+import { Braces, Volume2, VolumeX, Github } from 'lucide-react';
 import { audioService } from '../services/audioService';
 
 interface LayoutProps {
@@ -124,21 +124,31 @@ export const Layout: React.FC<LayoutProps> = ({
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
+             <a
+               href="https://github.com/Amery2010/cybergit"
+               target="_blank"
+               className="text-primary/70 hover:text-primary transition-colors p-1"
+               onMouseEnter={() => audioService.playHover()}
+               aria-label="GitHub Repository"
+             >
+               <Github className="w-4 h-4 md:w-5 md:h-5" />
+             </a>
+
              {toggleMute && (
               <button
                 onClick={toggleMute}
                 className="text-primary/70 hover:text-primary transition-colors p-1"
                 aria-label={isMuted ? "Unmute" : "Mute"}
               >
-                {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                {isMuted ? <VolumeX className="w-4 h-4 md:w-5 md:h-5" /> : <Volume2 className="w-4 h-4 md:w-5 md:h-5" />}
               </button>
             )}
 
             <button 
               onClick={toggleLang}
               onMouseEnter={() => audioService.playHover()}
-              className="px-2 py-1 text-[10px] font-mono border border-primary/40 text-primary hover:bg-primary hover:text-black transition-colors rounded"
+              className="px-2 py-2 ml-1 text-[10px] font-mono border border-primary/40 text-primary hover:bg-primary hover:text-black transition-colors rounded"
             >
               {lang === 'en' ? 'EN / 中文' : '中文 / EN'}
             </button>

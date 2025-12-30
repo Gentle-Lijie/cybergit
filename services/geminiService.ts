@@ -1,22 +1,46 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { UserData, AiPersona, Language } from '../types';
+import { UserData, AiPersona, Language, AnalysisResult, ProcessedLanguage } from '../types';
 
-export const generatePersonaAnalysis = async (userData: UserData, lang: Language = 'en'): Promise<AiPersona> => {
-  // Prepare a simplified dataset for Gemini to avoid hitting token limits
+export const generatePersonaAnalysis = async (
+  userData: UserData, 
+  analysis: AnalysisResult,
+  languages: ProcessedLanguage[],
+  lang: Language = 'en'
+): Promise<AiPersona> => {
+  // Construct a highly optimized summary payload using processed stats
+  // This avoids sending raw data (like 100+ repo objects) to the LLM
   const summaryData = {
-    login: userData.login,
-    name: userData.name,
-    createdAt: userData.createdAt,
-    location: userData.location,
-    organizations: userData.organizations.nodes.map(o => o.name || o.login),
-    repositories: userData.repositories.nodes.map(r => ({
-      name: r.name,
-      stars: r.stargazerCount,
-      forks: r.forkCount,
-      languages: r.languages.edges.map(e => e.node.name)
-    }))
+    identity: {
+        login: userData.login,
+        name: userData.name,
+        joined: new Date(userData.createdAt).getFullYear(),
+        location: userData.location,
+        orgs: userData.organizations.nodes.map(o => o.name || o.login),
+    },
+    stats: {
+        stars: analysis.totalStars,
+        forks: analysis.totalForks,
+        followers: analysis.followers,
+        total_contributions: analysis.breakdown.commits + analysis.breakdown.prs + analysis.breakdown.issues,
+    },
+    stack: languages.slice(0, 8).map(l => `${l.name} (${l.percentage}%)`),
+    habits: {
+        chronotype: analysis.timeCategory,
+        weekend_warrior: analysis.isWeekendWarrior,
+        longest_streak: analysis.longestStreak
+    },
+    interests: analysis.topTopics.slice(0, 10).map(t => t.name),
+    top_projects: analysis.topReposList.map(r => ({
+        name: r.name,
+        desc: r.description,
+        stars: r.stargazerCount
+    })),
+    // Included flat list for name-based keyword detection (AI Surfer persona)
+    all_repo_names: userData.repositories.nodes.map(r => r.name)
   };
+
+  console.log("AI Summary Payload:", summaryData);
 
   const systemPrompt = `
     I am a cyberpunk analyst from 2077, clad in a fluorescent exoskeleton. My mind navigates the sea of ​​code, using cold data as my pen to sculpt the unique digital soul of every developer in the cyber world. I excel at deeply analyzing GitHub user behavior patterns, revealing their underlying coding philosophies, technical expertise, and community influence. My analytical style is profound, humorous, and futuristic, focusing on people and infusing each report with soul and insight.
@@ -25,11 +49,11 @@ export const generatePersonaAnalysis = async (userData: UserData, lang: Language
     
     The output MUST be in ${lang === 'zh' ? 'Chinese (Simplified)' : 'English'}.
 
-    1. The Veteran: Analyze 'createdAt' and 'location'.
-    2. The Specialist: Analyze primary languages. Identify niche/retro languages (like Smarty) as "surprises".
-    3. The Creator: Analyze top projects by stars/forks. Calculate fork ratio.
-    4. The AI Surfer: Look for keywords in repo names like 'midjourney', 'chatgpt', 'mcp', 'deep-research', 'ai', 'llm'.
-    5. The Collaborator: List organizations.
+    1. The Veteran: Analyze 'joined' and 'location'.
+    2. The Specialist: Analyze 'stack' (primary languages). Identify niche/retro languages as "surprises".
+    3. The Creator: Analyze 'stats' (stars/forks) and 'top_projects'.
+    4. The AI Surfer: Look for keywords in 'all_repo_names' like 'midjourney', 'chatgpt', 'mcp', 'deep-research', 'ai', 'llm'.
+    5. The Collaborator: List 'orgs'.
     6. Final Persona: Generate a cool cyberpunk title (e.g., "Fullstack AI Geek") and a short summary sentence.
   `;
 
@@ -154,7 +178,6 @@ export const generatePersonaAnalysis = async (userData: UserData, lang: Language
     return JSON.parse(content) as AiPersona;
   } catch (err) {
     console.error("Pollinations AI failed:", err);
-    // If both fail, we might want to return a mock or throw. Throwing allows the UI to handle it.
     throw new Error("Failed to generate persona via Fallback AI.");
   }
 };

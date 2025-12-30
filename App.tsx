@@ -125,16 +125,22 @@ export default function App() {
       // 1. Fetch GitHub Data
       setLoadingText(t.loading.connecting);
       const data = await fetchGitHubData(token, username);
+      
+      // Calculate derived data immediately for AI context
+      const processedLangs = processLanguageData(data.repositories.nodes);
+      const analysisResult = analyzeUserData(data, t);
+
       setUserData(data);
-      setLanguages(processLanguageData(data.repositories.nodes));
-      setAnalysis(analyzeUserData(data, t));
+      setLanguages(processedLangs);
+      setAnalysis(analysisResult);
 
       // 2. Generate AI Persona (Only if enabled)
       let persona = null;
       if (enableAi) {
         setLoadingText(t.loading.profile);
         try {
-          persona = await generatePersonaAnalysis(data, lang);
+          // Pass pre-calculated stats to optimized generator
+          persona = await generatePersonaAnalysis(data, analysisResult, processedLangs, lang);
           setAiPersona(persona);
         } catch (aiErr) {
           console.error("AI Generation failed", aiErr);
