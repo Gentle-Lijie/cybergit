@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GITHUB REPORT // MATRIX_MODE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#00FF41",
+              "primary-dim": "#008F11",
+              "background-dark": "#000000", 
+              "surface-dark": "#0D0F0D",
+              "surface-light": "#1A1D1A",
+            },
+            fontFamily: {
+              "mono": ["Space Grotesk", "monospace"],
+            },
+            backgroundImage: {
+              'grid-pattern': "linear-gradient(to right, #00FF411a 1px, transparent 1px), linear-gradient(to bottom, #00FF411a 1px, transparent 1px)",
+            },
+            boxShadow: {
+              'neon': '0 0 5px rgba(0, 255, 65, 0.4), 0 0 10px rgba(0, 255, 65, 0.2)',
+              'neon-strong': '0 0 10px rgba(0, 255, 65, 0.6), 0 0 20px rgba(0, 255, 65, 0.4)',
+            },
+            animation: {
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'text-flicker': 'text-flicker 4s infinite',
+            },
+            keyframes: {
+              'text-flicker': {
+                '0%, 100%': { opacity: '0.97' },
+                '5%': { opacity: '0.9' },
+                '10%': { opacity: '0.97' },
+              }
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #000000; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #008F11; 
+        border-radius: 2px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #00FF41; 
+      }
+      .scanlines {
+        background: linear-gradient(
+          to bottom,
+          rgba(255,255,255,0),
+          rgba(255,255,255,0) 50%,
+          rgba(0,0,0,0.2) 50%,
+          rgba(0,0,0,0.2)
+        );
+        background-size: 100% 4px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        z-index: 50;
+      }
+      .crt-flicker {
+        animation: text-flicker 4s infinite;
+      }
+      body {
+        background-color: #000;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
+  }
+}
+</script>
+</head>
+  <body class="min-h-screen text-gray-300 font-mono selection:bg-primary selection:text-black overflow-x-hidden">
+    <div id="root"></div>
+  </body>
+</html>
