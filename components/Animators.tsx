@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
+import { audioService } from '../services/audioService';
 
 // --- Hook for visibility ---
 export const useInView = (options: IntersectionObserverInit = { threshold: 0.1, rootMargin: '0px' }) => {
@@ -42,6 +43,7 @@ export const CountUp: React.FC<CountUpProps> = ({ end, duration = 1500, suffix =
 
     let startTime: number;
     let animationFrame: number;
+    let frameCount = 0;
 
     const animate = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
@@ -53,8 +55,18 @@ export const CountUp: React.FC<CountUpProps> = ({ end, duration = 1500, suffix =
       
       setCount(Math.floor(ease * end));
 
+      // Play sound periodically (not every frame to avoid machine gun effect)
+      // Check if value changed significantly or just periodically
+      frameCount++;
       if (progress < duration) {
+        // Throttle sound to every 5 frames (~12 times a sec at 60fps)
+        if (frameCount % 5 === 0) {
+           audioService.playCountTick();
+        }
         animationFrame = requestAnimationFrame(animate);
+      } else {
+        // Ensure final number is set
+        setCount(end);
       }
     };
 
@@ -97,6 +109,7 @@ export const Typewriter: React.FC<TypewriterProps> = ({ text, speed = 30, delay 
     const interval = setInterval(() => {
       if (i < text.length) {
         setDisplayedText(text.substring(0, i + 1));
+        audioService.playType(); // Play sound on character reveal
         i++;
       } else {
         clearInterval(interval);

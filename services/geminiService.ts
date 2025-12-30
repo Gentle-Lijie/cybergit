@@ -3,12 +3,6 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { UserData, AiPersona, Language } from '../types';
 
 export const generatePersonaAnalysis = async (userData: UserData, lang: Language = 'en'): Promise<AiPersona> => {
-  if (!process.env.API_KEY) {
-     throw new Error("API_KEY not found in environment.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
   // Prepare a simplified dataset for Gemini to avoid hitting token limits
   const summaryData = {
     login: userData.login,
@@ -39,68 +33,128 @@ export const generatePersonaAnalysis = async (userData: UserData, lang: Language
     6. Final Persona: Generate a cool 2077 title (e.g., "Fullstack AI Geek") and a short summary sentence.
   `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: JSON.stringify(summaryData),
-    config: {
-      systemInstruction: systemPrompt,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          veteran: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              yearsSince: { type: Type.NUMBER },
-              location: { type: Type.STRING },
-              description: { type: Type.STRING },
+  // 1. Try Gemini if API Key is present
+  if (process.env.API_KEY) {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: JSON.stringify(summaryData),
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            veteran: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                yearsSince: { type: Type.NUMBER },
+                location: { type: Type.STRING },
+                description: { type: Type.STRING },
+              }
+            },
+            specialist: {
+              type: Type.OBJECT,
+              properties: {
+                primaryLang: { type: Type.STRING },
+                secondaryLangs: { type: Type.ARRAY, items: { type: Type.STRING } },
+                nicheLang: { type: Type.STRING },
+                description: { type: Type.STRING },
+              }
+            },
+            creator: {
+              type: Type.OBJECT,
+              properties: {
+                topProjects: { type: Type.ARRAY, items: { type: Type.STRING } },
+                description: { type: Type.STRING },
+              }
+            },
+            aiSurfer: {
+              type: Type.OBJECT,
+              properties: {
+                keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+                description: { type: Type.STRING },
+              }
+            },
+            collaborator: {
+               type: Type.OBJECT,
+               properties: {
+                 orgNames: { type: Type.ARRAY, items: { type: Type.STRING } },
+                 description: { type: Type.STRING }
+               }
+            },
+            finalPersona: {
+               type: Type.OBJECT,
+               properties: {
+                 title: { type: Type.STRING },
+                 keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+                 summary: { type: Type.STRING }
+               }
             }
-          },
-          specialist: {
-            type: Type.OBJECT,
-            properties: {
-              primaryLang: { type: Type.STRING },
-              secondaryLangs: { type: Type.ARRAY, items: { type: Type.STRING } },
-              nicheLang: { type: Type.STRING },
-              description: { type: Type.STRING },
-            }
-          },
-          creator: {
-            type: Type.OBJECT,
-            properties: {
-              topProjects: { type: Type.ARRAY, items: { type: Type.STRING } },
-              description: { type: Type.STRING },
-            }
-          },
-          aiSurfer: {
-            type: Type.OBJECT,
-            properties: {
-              keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-              description: { type: Type.STRING },
-            }
-          },
-          collaborator: {
-             type: Type.OBJECT,
-             properties: {
-               orgNames: { type: Type.ARRAY, items: { type: Type.STRING } },
-               description: { type: Type.STRING }
-             }
-          },
-          finalPersona: {
-             type: Type.OBJECT,
-             properties: {
-               title: { type: Type.STRING },
-               keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-               summary: { type: Type.STRING }
-             }
           }
         }
       }
-    }
-  });
+    });
 
-  const text = response.text;
-  if (!text) throw new Error("No analysis generated");
-  return JSON.parse(text) as AiPersona;
+    const text = response.text;
+    if (!text) throw new Error("No analysis generated");
+    return JSON.parse(text) as AiPersona;
+  }
+
+  // 2. Fallback to Pollinations.ai (OpenAI Compatible)
+  console.log("Using Pollinations.ai fallback (openai-fast)...");
+  
+  const jsonStructure = {
+      veteran: { title: "string", yearsSince: 0, location: "string", description: "string" },
+      specialist: { primaryLang: "string", secondaryLangs: ["string"], nicheLang: "string", description: "string" },
+      creator: { topProjects: ["string"], description: "string" },
+      aiSurfer: { keywords: ["string"], description: "string" },
+      collaborator: { orgNames: ["string"], description: "string" },
+      finalPersona: { title: "string", keywords: ["string"], summary: "string" }
+  };
+
+  // We explicitly request JSON in the prompt as a backup for models that don't strictly adhere to response_format
+  const pollinationsPrompt = `${systemPrompt}
+  
+  RETURN ONLY PURE JSON matching the structure below. Do not wrap in markdown code blocks.
+  Structure:
+  ${JSON.stringify(jsonStructure, null, 2)}
+  `;
+
+  try {
+    const response = await fetch('https://text.pollinations.ai/openai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'openai-fast',
+        messages: [
+          { role: 'system', content: pollinationsPrompt },
+          { role: 'user', content: JSON.stringify(summaryData) }
+        ],
+        response_format: { type: "json_object" }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Pollinations API Error: ${response.status} ${response.statusText}`);
+    }
+
+    const json = await response.json();
+    let content = json.choices?.[0]?.message?.content;
+    
+    if (!content) throw new Error("No content from Pollinations AI");
+
+    // Clean markdown code blocks if present (common in LLM output even when asked for JSON)
+    content = content.replace(/```json/g, '').replace(/```/g, '').trim();
+
+    return JSON.parse(content) as AiPersona;
+  } catch (err) {
+    console.error("Pollinations AI failed:", err);
+    // If both fail, we might want to return a mock or throw. Throwing allows the UI to handle it.
+    throw new Error("Failed to generate persona via Fallback AI.");
+  }
 };

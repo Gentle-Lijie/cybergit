@@ -40,7 +40,7 @@ export const Hero: React.FC<HeroProps> = ({ user, t }) => {
                 <Typewriter text={t.hero.identity} speed={50} />
             </div>
             
-            <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tighter uppercase leading-none mb-3 min-h-[1em]">
+            <h2 className="text-2xl md:text-4xl font-bold text-white tracking-tighter uppercase leading-none mb-3 min-h-[1em]">
                <Typewriter text={user.name || user.login} speed={80} delay={300} cursor={false} />
             </h2>
             
@@ -57,7 +57,7 @@ export const Hero: React.FC<HeroProps> = ({ user, t }) => {
             </div>
 
             {/* Account Stat Micro-Grid */}
-            <div className="grid grid-cols-3 gap-4 w-full max-w-md">
+            <div className="grid grid-cols-3 gap-4 w-full max-w-sm">
                 <div className="flex flex-col items-center md:items-start">
                     <div className="flex items-center gap-1 text-[10px] text-gray-500 uppercase">
                         <Clock className="w-3 h-3" /> {t.hero.age} <div className="ml-1 font-bold text-white"><CountUp end={accountAge} /> {t.hero.years}</div>

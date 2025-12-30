@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Fingerprint, AlertTriangle, KeyRound, User } from 'lucide-react';
 import { Translations } from '../translations';
+import { audioService } from '../services/audioService';
 
 interface LoginFormProps {
   onLogin: (token: string, username: string, enableAi: boolean) => void;
@@ -18,10 +19,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading, error,
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    audioService.playClick();
     if (token) onLogin(token, username, enableAi);
   };
 
   const openGitHubTokenPage = () => {
+    audioService.playClick();
     const scopes = 'read:user,read:org,repo,user:email';
     const description = 'CyberGit 2077 Report';
     const url = `https://github.com/settings/tokens/new?scopes=${scopes}&description=${encodeURIComponent(description)}`;
@@ -59,6 +62,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading, error,
             {/* Primary OAuth-style Action */}
             <button 
                 onClick={openGitHubTokenPage}
+                onMouseEnter={() => audioService.playHover()}
                 className="w-full bg-primary text-black hover:bg-white hover:shadow-[0_0_15px_rgba(255,255,255,0.5)] py-4 px-4 font-bold tracking-widest transition-all duration-300 flex items-center justify-center gap-3 group/btn relative overflow-hidden"
             >
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300"></div>
@@ -75,7 +79,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading, error,
                         <input 
                             type="text"
                             value={username}
-                            onChange={(e) => setUsername(e.target.value)}
+                            onChange={(e) => { setUsername(e.target.value); audioService.playType(); }}
                             placeholder={t.login.usernamePlaceholder}
                             className="w-full bg-black border border-primary/30 text-primary p-3 pl-10 focus:outline-none focus:border-primary focus:shadow-[0_0_10px_rgba(0,255,65,0.3)] transition-all font-mono text-xs placeholder:text-primary/30"
                         />
@@ -86,7 +90,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading, error,
                         <input 
                             type="password"
                             value={token}
-                            onChange={(e) => setToken(e.target.value)}
+                            onChange={(e) => { setToken(e.target.value); audioService.playType(); }}
                             placeholder={t.login.tokenPlaceholder}
                             className="w-full bg-black border border-primary/30 text-primary p-3 pl-10 focus:outline-none focus:border-primary focus:shadow-[0_0_10px_rgba(0,255,65,0.3)] transition-all font-mono text-xs placeholder:text-primary/30"
                         />
@@ -96,6 +100,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading, error,
                     <button 
                         type="submit" 
                         disabled={isLoading || !token}
+                        onMouseEnter={() => audioService.playHover()}
                         className="w-full bg-primary/10 border border-primary text-primary hover:bg-primary hover:text-black py-2 px-4 text-xs font-bold tracking-widest transition-all duration-300 disabled:opacity-50"
                     >
                         {isLoading ? t.login.decrypting : t.login.submitBtn}
@@ -105,7 +110,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading, error,
 
             {!showManualInput && (
                 <button 
-                    onClick={() => setShowManualInput(true)}
+                    onClick={() => { setShowManualInput(true); audioService.playClick(); }}
+                    onMouseEnter={() => audioService.playHover()}
                     className="text-[10px] text-gray-500 hover:text-primary transition-colors uppercase tracking-widest text-center mt-2"
                 >
                     {t.login.manualLink}
@@ -114,13 +120,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading, error,
 
             {/* AI Toggle */}
             <div className="flex items-center justify-center pt-4 border-t border-primary/10 mt-2">
-                <label className="flex items-center gap-3 cursor-pointer group">
+                <label className="flex items-center gap-3 cursor-pointer group" onMouseEnter={() => audioService.playHover()}>
                 <div className="relative">
                     <input 
                         type="checkbox" 
                         className="sr-only"
                         checked={enableAi}
-                        onChange={(e) => setEnableAi(e.target.checked)}
+                        onChange={(e) => { setEnableAi(e.target.checked); audioService.playClick(); }}
                     />
                     <div className={`block w-8 h-4 border border-primary/50 rounded-full transition-all duration-300 ${enableAi ? 'bg-primary/20 shadow-neon' : 'bg-black'}`}></div>
                     <div className={`absolute left-0.5 top-0.5 w-3 h-3 bg-primary rounded-full transition-transform duration-300 ${enableAi ? 'translate-x-4 shadow-[0_0_5px_#00FF41]' : 'translate-x-0 opacity-50'}`}></div>
@@ -134,7 +140,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading, error,
 
         <div className="mt-6 text-center">
             <button 
-                onClick={() => onLogin('demo', 'CyberRunner_2077', enableAi)}
+                onClick={() => { onLogin('demo', 'CyberRunner_2077', enableAi); audioService.playClick(); }}
+                onMouseEnter={() => audioService.playHover()}
                 className="text-[10px] text-primary/40 hover:text-primary underline decoration-dotted underline-offset-4 tracking-widest hover:shadow-neon transition-all"
             >
                 {t.login.demoMode}

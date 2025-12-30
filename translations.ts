@@ -1,5 +1,6 @@
 
 
+
 export type Language = 'en' | 'zh';
 
 export const translations = {
@@ -14,7 +15,7 @@ export const translations = {
       ],
       handshake: 'ESTABLISHING SECURE HANDSHAKE...',
       connecting: 'CONNECTING NEURAL NETWORKS...',
-      profile: 'PROCESSING AI PROFILE...',
+      profile: 'AI DECIPHERING PROFILE...',
       init: 'INITIALIZING CONNECTION...'
     },
     layout: {
@@ -27,10 +28,10 @@ export const translations = {
       subtitle: 'Identity Verification Required',
       githubBtn: 'CONNECT VIA GITHUB HQ',
       usernamePlaceholder: 'GITHUB_USERNAME (OPTIONAL)',
-      tokenPlaceholder: 'PASTE_ACCESS_KEY_HERE',
+      tokenPlaceholder: 'PASTE_ACCESS_TOKEN_HERE',
       submitBtn: 'CONFIRM UPLINK',
       decrypting: 'DECRYPTING...',
-      manualLink: 'Already have a key? Input Manually',
+      manualLink: 'Already have a token? Input Manually',
       aiToggle: 'Enable AI Profiler',
       demoMode: '>> BYPASS SECURITY (DEMO MODE)',
       error: 'ERROR'
@@ -172,7 +173,8 @@ export const translations = {
       snapshot: 'SAVE_SNAPSHOT',
       capturing: 'CAPTURING...',
       terminate: 'TERMINATE_SESSION',
-      systemConnected: 'SYSTEM CONNECTED'
+      systemConnected: 'SYSTEM CONNECTED',
+      scanAccess: 'SCAN_ACCESS_CODE'
     }
   },
   zh: {
@@ -186,7 +188,7 @@ export const translations = {
       ],
       handshake: '建立安全握手...',
       connecting: '连接神经网络...',
-      profile: '正在处理 AI 档案...',
+      profile: 'AI 正在解密档案...',
       init: '正在初始化连接...'
     },
     layout: {
@@ -344,7 +346,8 @@ export const translations = {
       snapshot: '保存快照',
       capturing: '捕获中...',
       terminate: '终止会话',
-      systemConnected: '系统已连接'
+      systemConnected: '系统已连接',
+      scanAccess: '扫描访问代码'
     }
   }
 };

@@ -2,7 +2,8 @@
 import React, { useEffect, useRef } from 'react';
 import type { UserData, Language } from '../types';
 import { Translations } from '../translations';
-import { Braces } from 'lucide-react';
+import { Braces, Volume2, VolumeX } from 'lucide-react';
+import { audioService } from '../services/audioService';
 
 interface LayoutProps {
   loading: boolean
@@ -11,17 +12,30 @@ interface LayoutProps {
   lang: Language;
   toggleLang: () => void;
   t: Translations;
+  isMuted?: boolean;
+  toggleMute?: () => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ loading, userData, children, lang, toggleLang, t }) => {
+export const Layout: React.FC<LayoutProps> = ({ 
+  loading, 
+  userData, 
+  children, 
+  lang, 
+  toggleLang, 
+  t,
+  isMuted = false,
+  toggleMute 
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const parallaxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Parallax Effect Logic
     const handleScroll = () => {
+      const scrolled = window.scrollY;
+      
+      // Visual Parallax
       if (parallaxRef.current) {
-        const scrolled = window.scrollY;
         // Move the grid background slowly (0.15 speed) to create depth
         parallaxRef.current.style.transform = `translateY(${scrolled * 0.15}px)`;
       }
@@ -40,7 +54,7 @@ export const Layout: React.FC<LayoutProps> = ({ loading, userData, children, lan
 
     const columns = Math.floor(width / 20); 
     const drops: number[] = Array(columns).fill(1);
-    const chars = 'アァカサタハマヤャヌムュルグズセテネヘメレコソトホモヨョロヲ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const chars = 'アァカサタハマヤャヌムュルグ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
     const draw = () => {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
@@ -110,9 +124,20 @@ export const Layout: React.FC<LayoutProps> = ({ loading, userData, children, lan
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
+             {toggleMute && (
+              <button
+                onClick={toggleMute}
+                className="text-primary/70 hover:text-primary transition-colors p-1"
+                aria-label={isMuted ? "Unmute" : "Mute"}
+              >
+                {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+            )}
+
             <button 
               onClick={toggleLang}
+              onMouseEnter={() => audioService.playHover()}
               className="px-2 py-1 text-[10px] font-mono border border-primary/40 text-primary hover:bg-primary hover:text-black transition-colors rounded"
             >
               {lang === 'en' ? 'EN / 中文' : '中文 / EN'}

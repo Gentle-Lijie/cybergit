@@ -17,22 +17,57 @@ import { AiIdentity } from './components/AiIdentity';
 import { ScrollReveal } from './components/ScrollReveal';
 import { fetchGitHubData, processLanguageData, analyzeUserData } from './services/githubService';
 import { generatePersonaAnalysis } from './services/geminiService';
+import { audioService } from './services/audioService';
 import type { UserData, ProcessedLanguage, AnalysisResult, AiPersona, Language } from './types';
 import { translations } from './translations';
 import { Camera } from 'lucide-react';
 
+const CACHE_KEY = 'cybergit_report_cache_v1';
+
 export default function App() {
+  // Initialize language based on browser settings
+  const [lang, setLang] = useState<Language>(() => {
+    const browserLang = typeof navigator !== 'undefined' 
+      ? (navigator.language || navigator.languages?.[0] || 'en') 
+      : 'en';
+    return browserLang.toLowerCase().startsWith('zh') ? 'zh' : 'en';
+  });
+
+  const t = translations[lang];
+
   const [userData, setUserData] = useState<UserData | null>(null);
   const [languages, setLanguages] = useState<ProcessedLanguage[]>([]);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [aiPersona, setAiPersona] = useState<AiPersona | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loadingText, setLoadingText] = useState<string>('INITIALIZING CONNECTION...');
+  const [loadingText, setLoadingText] = useState<string>(t.loading.init);
   const [savingImage, setSavingImage] = useState(false);
-  const [lang, setLang] = useState<Language>('en');
+  const [isDemo, setIsDemo] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // Default muted
 
-  const t = translations[lang];
+  // Initialize Audio Context on first interaction
+  useEffect(() => {
+    const initAudio = () => {
+      audioService.init().catch(console.error);
+      window.removeEventListener('click', initAudio);
+      window.removeEventListener('keydown', initAudio);
+    };
+
+    window.addEventListener('click', initAudio);
+    window.addEventListener('keydown', initAudio);
+
+    return () => {
+      window.removeEventListener('click', initAudio);
+      window.removeEventListener('keydown', initAudio);
+    };
+  }, []);
+
+  const toggleMute = () => {
+    const muted = audioService.toggleMute();
+    setIsMuted(muted);
+    if (!muted) audioService.playClick();
+  };
 
   // Check URL for token on mount (Mock OAuth handling)
   useEffect(() => {
@@ -43,6 +78,25 @@ export default function App() {
     if (token) {
         window.history.replaceState({}, document.title, window.location.pathname);
         handleLogin(token, '', true);
+    } else {
+      // If no token in URL, check cache
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        try {
+          const { userData: cachedUserData, aiPersona: cachedAiPersona } = JSON.parse(cached);
+          if (cachedUserData) {
+            setUserData(cachedUserData);
+            setLanguages(processLanguageData(cachedUserData.repositories.nodes));
+            if (cachedAiPersona) {
+               setAiPersona(cachedAiPersona);
+            }
+            setIsDemo(false);
+          }
+        } catch (e) {
+          console.error("Cache parse error", e);
+          localStorage.removeItem(CACHE_KEY);
+        }
+      }
     }
   }, []);
 
@@ -54,14 +108,19 @@ export default function App() {
   }, [lang]);
 
   const toggleLang = () => {
+    audioService.playClick();
     setLang(prev => prev === 'en' ? 'zh' : 'en');
   };
 
   const handleLogin = async (token: string, username: string, enableAi: boolean) => {
+    audioService.playStartup();
     setLoading(true);
     setError(null);
     setLoadingText(t.loading.handshake);
     
+    const isDemoLogin = token === 'demo';
+    setIsDemo(isDemoLogin);
+
     try {
       // 1. Fetch GitHub Data
       setLoadingText(t.loading.connecting);
@@ -71,16 +130,25 @@ export default function App() {
       setAnalysis(analyzeUserData(data, t));
 
       // 2. Generate AI Persona (Only if enabled)
+      let persona = null;
       if (enableAi) {
         setLoadingText(t.loading.profile);
         try {
-          const persona = await generatePersonaAnalysis(data, lang);
+          persona = await generatePersonaAnalysis(data, lang);
           setAiPersona(persona);
         } catch (aiErr) {
           console.error("AI Generation failed", aiErr);
         }
       } else {
         setAiPersona(null);
+      }
+
+      // 3. Cache the results (Only if NOT demo)
+      if (!isDemoLogin) {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
+          userData: data,
+          aiPersona: persona
+        }));
       }
 
     } catch (err: any) {
@@ -94,12 +162,12 @@ export default function App() {
   useEffect(() => {
     if (userData) {
       setAnalysis(analyzeUserData(userData, t));
-      // Note: We don't regenerate AI persona to save API calls, unless we want to forcedly re-gen
     }
   }, [lang, userData]);
 
 
   const handleSaveImage = async () => {
+    audioService.playClick();
     setSavingImage(true);
     const rootElement = document.getElementById('root');
     if (!rootElement) return;
@@ -128,8 +196,30 @@ export default function App() {
     }
   };
 
+  const handleTerminate = () => {
+    audioService.playClick();
+    setUserData(null);
+    setLanguages([]);
+    setAnalysis(null);
+    setAiPersona(null);
+    
+    // Only remove cache if it was a real session
+    if (!isDemo) {
+        localStorage.removeItem(CACHE_KEY);
+    }
+    setIsDemo(false);
+  };
+
   return (
-    <Layout userData={userData} loading={loading} lang={lang} toggleLang={toggleLang} t={t}>
+    <Layout 
+      userData={userData} 
+      loading={loading} 
+      lang={lang} 
+      toggleLang={toggleLang} 
+      t={t}
+      isMuted={isMuted}
+      toggleMute={toggleMute}
+    >
       {!userData && !loading && (
         <LoginForm onLogin={handleLogin} isLoading={loading} error={error} t={t} />
       )}
@@ -219,30 +309,30 @@ export default function App() {
           </ScrollReveal>
 
           <ScrollReveal delay={300}>
-            <div className="flex flex-col items-center gap-4 hide-on-screenshot mb-8 md:mb-12">
-              <div className="flex gap-4">
-                <button 
-                  onClick={handleSaveImage}
-                  disabled={savingImage}
-                  className="flex items-center gap-2 text-xs text-black bg-primary hover:bg-white border border-primary px-4 py-2 rounded transition-all font-bold shadow-neon disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Camera className="w-4 h-4" />
-                  {savingImage ? t.controls.capturing : t.controls.snapshot}
-                </button>
-                
-                <button 
-                  onClick={() => { setUserData(null); setLanguages([]); setAnalysis(null); setAiPersona(null); }}
-                  disabled={savingImage}
-                  className="text-xs text-primary/40 hover:text-primary border border-primary/20 hover:border-primary px-4 py-2 rounded transition-all bg-black/50"
-                >
-                  {t.controls.terminate}
-                </button>
-              </div>
+            {/* Action Buttons - Hidden in Screenshot */}
+            <div className="flex justify-center gap-4 mb-8 md:mb-12 hide-on-screenshot">
+              <button 
+                onClick={handleSaveImage}
+                disabled={savingImage}
+                onMouseEnter={() => audioService.playHover()}
+                className="flex items-center gap-2 text-xs text-black bg-primary hover:bg-white border border-primary px-4 py-2 rounded transition-all font-bold shadow-neon disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Camera className="w-4 h-4" />
+                {savingImage ? t.controls.capturing : t.controls.snapshot}
+              </button>
+              
+              <button 
+                onClick={handleTerminate}
+                disabled={savingImage}
+                onMouseEnter={() => audioService.playHover()}
+                className="text-xs text-primary/40 hover:text-primary border border-primary/20 hover:border-primary px-4 py-2 rounded transition-all bg-black/50"
+              >
+                {t.controls.terminate}
+              </button>
             </div>
           </ScrollReveal>
         </div>
-
-          <div className="border-t border-primary/20 bg-black/90 py-6 text-center relative z-10">
+          <div className="relative border-t border-primary/20 bg-black/90 py-6 text-center relative z-10">
             <div className="max-w-7xl mx-auto flex flex-col items-center gap-4">
               <div className="flex items-center gap-2 text-primary/60 font-mono text-xs">
                 <span className="animate-pulse">_</span>
