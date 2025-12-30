@@ -86,7 +86,7 @@ export default function App() {
             throw new Error(response.status === 404 ? 'Report not found in archive' : 'Data corruption detected');
         }
         
-        const data: UserData = await response.json();
+        const { data }: { success: string, data: UserData } = await response.json();
         
         // Calculate derived data
         const processedLangs = processLanguageData(data.repositories?.nodes);
