@@ -206,7 +206,7 @@ export const translations = {
       githubBtn: '通过 GITHUB 连接',
       usernamePlaceholder: 'GITHUB 用户名 (可选)',
       tokenPlaceholder: '在此粘贴访问密钥',
-      submitBtn: '确认上行链路',
+      submitBtn: '访问上行链路',
       decrypting: '解密中...',
       manualLink: '已有密钥？手动输入',
       aiToggle: '启用 AI 分析器',
