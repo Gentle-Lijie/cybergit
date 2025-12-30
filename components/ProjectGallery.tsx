@@ -43,19 +43,21 @@ export const ProjectGallery: React.FC<ProjectGalleryProps> = ({ analysis, t }) =
                   rel="noopener noreferrer"
                   className="bg-black/40 border border-white/5 p-4 hover:border-primary/40 transition-all group flex items-start justify-between hover:bg-white/5 block cursor-pointer"
                 >
-                    <div className="flex-grow">
+                    <div className="flex-grow min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                          {repo.isPrivate ? <Lock className="w-3 h-3 text-yellow-500" /> : <Globe className="w-3 h-3 text-gray-500" />}
-                          <span className="text-white font-bold group-hover:text-primary transition-colors underline-offset-4 group-hover:underline decoration-primary/50">{repo.name}</span>
+                          <div className="shrink-0">
+                            {repo.isPrivate ? <Lock className="w-3 h-3 text-yellow-500" /> : <Globe className="w-3 h-3 text-gray-500" />}
+                          </div>
+                          <span className="text-white font-bold group-hover:text-primary transition-colors underline-offset-4 group-hover:underline decoration-primary/50 truncate block">{repo.name}</span>
                           {repo.primaryLanguage && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5" style={{ color: repo.primaryLanguage.color }}>
+                              <span className="hidden sm:inline-block text-[9px] px-1.5 py-0.5 rounded bg-white/5 shrink-0" style={{ color: repo.primaryLanguage.color }}>
                                   {repo.primaryLanguage.name}
                               </span>
                           )}
                       </div>
                       <p className="text-[11px] text-gray-500 line-clamp-1">{repo.description || t.projects.noDesc}</p>
                     </div>
-                    <div className="flex items-center gap-4 text-xs font-mono pl-4">
+                    <div className="flex items-center gap-4 text-xs font-mono pl-4 shrink-0">
                       <div className="flex items-center gap-1 text-yellow-500">
                           <Star className="w-3 h-3" /> {repo.stargazerCount}
                       </div>

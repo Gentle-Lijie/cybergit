@@ -24,10 +24,15 @@ import { Camera, Share2 } from 'lucide-react';
 
 const CACHE_KEY = 'cybergit_report_cache_v1';
 const API_BASE = 'https://cybergit-api.u14.app/api';
+const LANG_KEY = 'cybergit_lang';
 
 export default function App() {
-  // Initialize language based on browser settings
+  // Initialize language based on localStorage or browser settings
   const [lang, setLang] = useState<Language>(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem(LANG_KEY);
+      if (saved === 'en' || saved === 'zh') return saved;
+    }
     const browserLang = typeof navigator !== 'undefined' 
       ? (navigator.language || navigator.languages?.[0] || 'en') 
       : 'en';
@@ -180,7 +185,11 @@ export default function App() {
 
   const toggleLang = () => {
     audioService.playClick();
-    setLang(prev => prev === 'en' ? 'zh' : 'en');
+    setLang(prev => {
+        const next = prev === 'en' ? 'zh' : 'en';
+        localStorage.setItem(LANG_KEY, next);
+        return next;
+    });
   };
 
   const handleLogin = async (token: string, username: string, enableAi: boolean) => {

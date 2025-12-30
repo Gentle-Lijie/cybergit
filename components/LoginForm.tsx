@@ -11,9 +11,19 @@ interface LoginFormProps {
   t: Translations;
 }
 
+const AI_PREF_KEY = 'cybergit_enable_ai';
+
 export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading, error, t }) => {
   const [token, setToken] = useState('');
-  const [enableAi, setEnableAi] = useState(true);
+  const [enableAi, setEnableAi] = useState(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem(AI_PREF_KEY);
+      if (saved !== null) {
+        return saved === 'true';
+      }
+    }
+    return true; // Default to true
+  });
   const [showManualInput, setShowManualInput] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -115,7 +125,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading, error,
                         type="checkbox" 
                         className="sr-only"
                         checked={enableAi}
-                        onChange={(e) => { setEnableAi(e.target.checked); audioService.playClick(); }}
+                        onChange={(e) => { 
+                            const newValue = e.target.checked;
+                            setEnableAi(newValue); 
+                            localStorage.setItem(AI_PREF_KEY, String(newValue));
+                            audioService.playClick(); 
+                        }}
                     />
                     <div className={`block w-8 h-4 border border-primary/50 rounded-full transition-all duration-300 ${enableAi ? 'bg-primary/20 shadow-neon' : 'bg-black'}`}></div>
                     <div className={`absolute left-0.5 top-0.5 w-3 h-3 bg-primary rounded-full transition-transform duration-300 ${enableAi ? 'translate-x-4 shadow-[0_0_5px_#00FF41]' : 'translate-x-0 opacity-50'}`}></div>

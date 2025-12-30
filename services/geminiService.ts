@@ -2,12 +2,55 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserData, AiPersona, Language, AnalysisResult, ProcessedLanguage } from '../types';
 
+// Mock AI Persona for Demo Mode
+const getMockPersona = (lang: string): AiPersona => {
+    const isZh = lang === 'zh';
+    return {
+        veteran: {
+            title: isZh ? "传奇黑客" : "Netrunner Legend",
+            yearsSince: 12,
+            location: isZh ? "新东京, 第七区" : "Neo-Tokyo, Sector 7",
+            description: isZh ? "自2013年起潜伏在阴影中，数据足迹遍布全球。" : "Operating from the shadows of Neo-Tokyo since 2013."
+        },
+        specialist: {
+            primaryLang: "TypeScript",
+            secondaryLangs: ["Rust", "Python", "Go"],
+            nicheLang: "Assembly",
+            description: isZh ? "精通现代网络协议与底层系统入侵。" : "Master of modern web protocols with low-level system hacking capabilities."
+        },
+        creator: {
+            topProjects: ["peinture", "midjourney-prompt-generator"],
+            description: isZh ? "生成式AI工具与神经接口架构师。" : "Architect of generative AI tools and neural interface bridges."
+        },
+        aiSurfer: {
+            keywords: ["generative-ai", "prompt-engineering", "neural-net"],
+            description: isZh ? "深度参与AI革命，驾驭奇点浪潮。" : "Deeply entrenched in the AI revolution, surfing the singularity wave."
+        },
+        collaborator: {
+            orgNames: ["Tyrell Corp", "Resistance"],
+            description: isZh ? "游走于公司与反抗军之间的双重代理人。" : "Double agent working for both the Corp and the Resistance."
+        },
+        finalPersona: {
+            title: isZh ? "赛博架构师" : "Cyberpunk Architect",
+            keywords: ["AI", "Cyberpunk", "Fullstack"],
+            summary: isZh ? "一位将艺术愿景与算法精度完美融合的代码编织者。" : "A legendary code-weaver blending artistic vision with algorithmic precision."
+        }
+    };
+};
+
 export const generatePersonaAnalysis = async (
   userData: UserData, 
   analysis: AnalysisResult,
   languages: ProcessedLanguage[],
   lang: Language = 'en'
 ): Promise<AiPersona> => {
+  // --- Check for Demo User ---
+  if (userData.login === 'dev_runner') {
+      // Simulate network delay for realism
+      await new Promise(resolve => setTimeout(resolve, 800));
+      return getMockPersona(lang);
+  }
+
   // Construct a highly optimized summary payload using processed stats
   const summaryData = {
     identity: {
@@ -138,7 +181,7 @@ export const generatePersonaAnalysis = async (
     });
 
     if (response.ok) {
-        const { data } = await response.json();
+        const data = await response.json();
         return data as AiPersona;
     } else {
         console.warn(`Custom API Proxy returned status ${response.status}. Falling back...`);
