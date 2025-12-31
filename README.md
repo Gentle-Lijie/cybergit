@@ -1,3 +1,4 @@
+
 <div align="center">
 
 # 🟢 CyberGit Report
@@ -20,14 +21,34 @@
 
 Unlike standard reports, this system utilizes **AI** to psychoanalyze your coding style, assigning you a persona (e.g., "Fullstack AI Geek", "Refactor Monk") based on your languages, commit habits, and project topics.
 
+![Login](https://cdn.u14.app/upload/WX20251231-102539@2x.png)
+
+![Report](https://cdn.u14.app/upload/WX20251231-102715@2x.png)
+
+Preview URL: [Amery2010's CyberGit Report](https://cybergit.u14.app/#Amery2010)
+
+## 📊 Report Intelligence
+
+**CyberGit** aggregates disparate data points into a cohesive narrative:
+
+*   **Identity Matrix**: Level calculation based on total contribution volume.
+*   **Temporal Analysis**:
+    *   *Chronotype*: Peak productivity hours (e.g., "Night Owl" vs "Early Bird").
+    *   *Rhythm*: 24-hour activity distribution and contribution streaks.
+*   **Code Dynamics**:
+    *   *Entropy*: Refactor ratio (Lines Added vs. Deleted).
+    *   *Velocity*: Average PR merge time and code churn magnitude.
+*   **Ecosystem**:
+    *   *Stack*: Top languages by usage percentage.
+    *   *Impact*: Total Stars/Forks and Open Source contribution ratio.
+    *   *Network*: Organization affiliations and "Impact Star" repositories.
+*   **AI Psych Profile**: A unique, generative text analysis of your coding personality.
+
 ## 💾 Core Modules
 
 *   **Cyberpunk UI/UX**: Matrix rain canvas effects, CRT scanlines, neon glows, and immersive audio SFX (typing, hovering, booting).
-*   **Deep Data Analysis**:
-    *   **Chronotype**: Are you a "Night Owl" or "Early Bird"?
-    *   **Entropy**: Analysis of code additions vs. deletions (Refactor Ratio).
-    *   **Velocity**: Average PR merge times and size.
-*   **AI Persona Generation**: Uses AI to generate a unique narrative profile describing your coding soul.
+*   **Deep Data Analysis**: Backend logic to calculate streaks, refactor ratios, and merge velocities from raw GraphQL nodes.
+*   **AI Persona Generation**: Uses Google Gemini to generate a unique narrative profile describing your coding soul.
 *   **Contribution Heatmap**: A custom-built, glowing activity grid for the year 2025.
 *   **3D Tech Cloud**: Interactive tag sphere visualizing your top topics.
 *   **Export & Share**: Generate a high-quality PNG snapshot of your report or share via a unique uplink URL.

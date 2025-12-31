@@ -138,7 +138,10 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token') || params.get('access_token');
-    const sharedUser = params.get('user');
+    
+    // Support hash-based user ID (preferred) or legacy query param
+    const hashUser = window.location.hash ? window.location.hash.substring(1) : null;
+    const sharedUser = hashUser || params.get('user');
     
     if (token) {
         // Clear URL to keep it clean
@@ -278,7 +281,8 @@ export default function App() {
             throw new Error('Upload failed');
         }
 
-        const url = `${window.location.origin}${window.location.pathname}?user=${userData.login}`;
+        // Updated to use hash based URL
+        const url = `${window.location.origin}${window.location.pathname}#${userData.login}`;
         await navigator.clipboard.writeText(url);
         setShareSuccess(true);
         setTimeout(() => setShareSuccess(false), 3000);
@@ -335,7 +339,7 @@ export default function App() {
     setIsDemo(false);
     setShowLogin(true); // Show login form with animation
     
-    // Clean URL params if any
+    // Clean URL params and hash
     window.history.replaceState({}, document.title, window.location.pathname);
   };
 
