@@ -13,6 +13,7 @@ import { CommunitySection } from './components/CommunitySection';
 import { PrAnalysis } from './components/PrAnalysis';
 import { ContributionBreakdown } from './components/ContributionBreakdown';
 import { ProjectGallery } from './components/ProjectGallery';
+import { AdvancedInsights } from './components/AdvancedInsights';
 import { AiIdentity } from './components/AiIdentity';
 import { ScrollReveal } from './components/ScrollReveal';
 import { fetchGitHubData, processLanguageData, analyzeUserData } from './services/githubService';
@@ -48,12 +49,18 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingText, setLoadingText] = useState<string>(t.loading.init);
+  const [loadingLogs, setLoadingLogs] = useState<string[]>([]);
   const [savingImage, setSavingImage] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const [isMuted, setIsMuted] = useState(true); // Default muted
   const [showLogin, setShowLogin] = useState(false); // Controls login form visibility/animation
+
+  const appendLoadingLog = (message: string) => {
+    const stamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    setLoadingLogs(prev => [...prev, `[${stamp}] ${message}`].slice(-8));
+  };
 
   // Initialize Audio Context on first interaction
   useEffect(() => {
@@ -82,14 +89,18 @@ export default function App() {
   const loadSharedReport = async (username: string) => {
     setLoading(true);
     setLoadingText(t.loading.retrieving);
+    setLoadingLogs([]);
+    appendLoadingLog(`开始读取共享年报：@${username}`);
     setIsDemo(true); // Treat as demo/read-only
     setShowLogin(false); // Ensure login is hidden while loading
 
     try {
+      appendLoadingLog('正在连接云端归档接口...');
         const response = await fetch(`${API_BASE}/read?key=${username}`);
         if (!response.ok) {
             throw new Error(response.status === 404 ? 'Report not found in archive' : 'Data corruption detected');
         }
+      appendLoadingLog('归档数据读取成功，正在解析...');
         
         const responseJson = await response.json();
         // Use loose typing to extract potential AI cache
@@ -108,6 +119,7 @@ export default function App() {
         // Calculate derived data
         const processedLangs = processLanguageData(data.repositories?.nodes);
         const analysisResult = analyzeUserData(data, t);
+        appendLoadingLog('统计分析完成，正在构建报告...');
 
         setUserData(data);
         setLanguages(processedLangs);
@@ -116,18 +128,22 @@ export default function App() {
         // If we found cached AI persona, use it directly. Otherwise try to generate.
         if (cachedPersona) {
             setAiPersona(cachedPersona);
+          appendLoadingLog('已加载缓存 AI 档案。');
         } else {
             // Attempt to generate AI persona using fallback (no api key on shared view)
             try {
                 const persona = await generatePersonaAnalysis(data, analysisResult, processedLangs, lang);
                 setAiPersona(persona);
+                appendLoadingLog('AI 档案生成完成。');
             } catch (aiErr) {
                 console.warn("Shared view AI skipped:", aiErr);
+                appendLoadingLog('AI 档案生成失败，已跳过。');
             }
         }
 
     } catch (err: any) {
         setError(err.message || 'Connection failed');
+          appendLoadingLog(`读取失败：${err.message || 'Connection failed'}`);
         setShowLogin(true); // Show login on error so user isn't stuck
     } finally {
         setLoading(false);
@@ -199,7 +215,9 @@ export default function App() {
     audioService.playStartup();
     setLoading(true);
     setError(null);
+    setLoadingLogs([]);
     setLoadingText(t.loading.handshake);
+    appendLoadingLog('握手初始化完成。');
     setShowLogin(false); // Hide login form
     
     const isDemoLogin = token === 'demo';
@@ -208,11 +226,16 @@ export default function App() {
     try {
       // 1. Fetch GitHub Data
       setLoadingText(t.loading.connecting);
-      const data = await fetchGitHubData(token, username);
+      appendLoadingLog('准备拉取 GitHub 数据...');
+      const data = await fetchGitHubData(token, username, (msg) => {
+        appendLoadingLog(msg);
+      });
+      appendLoadingLog('GitHub 数据拉取完成。');
       
       // Calculate derived data immediately for AI context
       const processedLangs = processLanguageData(data.repositories?.nodes);
       const analysisResult = analyzeUserData(data, t);
+      appendLoadingLog('基础统计分析完成。');
 
       setUserData(data);
       setLanguages(processedLangs);
@@ -222,15 +245,19 @@ export default function App() {
       let persona = null;
       if (enableAi) {
         setLoadingText(t.loading.profile);
+        appendLoadingLog('开始生成 AI 档案...');
         try {
           // Pass pre-calculated stats to optimized generator
           persona = await generatePersonaAnalysis(data, analysisResult, processedLangs, lang);
           setAiPersona(persona);
+          appendLoadingLog('AI 档案生成成功。');
         } catch (aiErr) {
           console.error("AI Generation failed", aiErr);
+          appendLoadingLog('AI 档案生成失败，已降级为纯数据报告。');
         }
       } else {
         setAiPersona(null);
+        appendLoadingLog('已跳过 AI 档案生成。');
       }
 
       // 3. Cache the results (Only if NOT demo)
@@ -239,12 +266,15 @@ export default function App() {
           userData: data,
           aiPersona: persona
         }));
+        appendLoadingLog('本地缓存写入完成。');
       }
 
     } catch (err: any) {
       setError(err.message || 'Connection failed');
+      appendLoadingLog(`连接失败：${err.message || 'Connection failed'}`);
       setShowLogin(true); // Re-show login on failure
     } finally {
+      appendLoadingLog('流程结束，正在渲染报告视图。');
       setLoading(false);
     }
   };
@@ -366,6 +396,16 @@ export default function App() {
           <div className="font-mono text-primary tracking-widest text-sm animate-pulse">
             {loadingText}
           </div>
+
+          <div className="w-full max-w-2xl bg-black/40 border border-primary/20 p-3">
+            <div className="text-[10px] text-primary/70 uppercase tracking-widest mb-2">{t.loading.logTitle}</div>
+            <div className="font-mono text-[10px] text-gray-300 space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
+              {(loadingLogs.length > 0 ? loadingLogs : [t.loading.waiting]).map((line, idx) => (
+                <div key={`${line}-${idx}`} className="truncate">{line}</div>
+              ))}
+            </div>
+          </div>
+
           <div className="w-64 h-1 bg-surface-light overflow-hidden">
             <div className="h-full bg-primary animate-[loading_2s_ease-in-out_infinite] w-full origin-left scale-x-0"></div>
           </div>
@@ -424,6 +464,11 @@ export default function App() {
           {/* Contribution Types */}
           <ScrollReveal>
             <ContributionBreakdown analysis={analysis} t={t} />
+          </ScrollReveal>
+
+          {/* Advanced Repo Intelligence */}
+          <ScrollReveal>
+            <AdvancedInsights analysis={analysis} t={t} />
           </ScrollReveal>
 
           {/* Achievements */}

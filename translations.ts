@@ -16,7 +16,9 @@ export const translations = {
       connecting: 'CONNECTING NEURAL NETWORKS...',
       profile: 'AI DECIPHERING PROFILE...',
       init: 'INITIALIZING CONNECTION...',
-      retrieving: 'RETRIEVING ARCHIVED DATA...'
+      retrieving: 'RETRIEVING ARCHIVED DATA...',
+      logTitle: 'Pipeline Logs',
+      waiting: 'Waiting for network signal...'
     },
     layout: {
       title: 'GITHUB USER REPORT',
@@ -145,6 +147,15 @@ export const translations = {
       title: 'Contribution_Spectrum',
       ops: 'Ops'
     },
+    insights: {
+      title: 'Repository_Intelligence',
+      ownershipControl: 'Ownership / Admin Control',
+      commitCoverage: 'Commit Coverage',
+      commitDensity: 'Commits Density',
+      freshness90d: 'Freshness (90d)',
+      perRepo: 'commits per active repo',
+      activeRecently: 'recently active repositories'
+    },
     projects: {
       title: 'Project_Matrix',
       topRepos: 'Top_Repositories',
@@ -193,7 +204,9 @@ export const translations = {
       connecting: '连接神经网络...',
       profile: 'AI 正在解密档案...',
       init: '正在初始化连接...',
-      retrieving: '正在检索归档数据...'
+      retrieving: '正在检索归档数据...',
+      logTitle: '拉取日志',
+      waiting: '等待网络信号中...'
     },
     layout: {
       title: 'GITHUB 用户年报',
@@ -321,6 +334,15 @@ export const translations = {
     breakdown: {
       title: '贡献光谱',
       ops: '次操作'
+    },
+    insights: {
+      title: '仓库智能分析',
+      ownershipControl: 'Owner / 管理员控制率',
+      commitCoverage: '提交覆盖率',
+      commitDensity: '提交密度',
+      freshness90d: '近 90 天活跃度',
+      perRepo: '每个活跃仓库平均提交',
+      activeRecently: '近期有推送的仓库占比'
     },
     projects: {
       title: '项目矩阵',

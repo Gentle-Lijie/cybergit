@@ -3,6 +3,53 @@ import { Translations } from '../translations';
 
 const GITHUB_GRAPHQL_API = 'https://api.github.com/graphql';
 
+const buildRepoKey = (owner: string | undefined, name: string | undefined): string => {
+  if (!owner || !name) return '';
+  return `${owner.toLowerCase()}/${name.toLowerCase()}`;
+};
+
+const filterRepositoriesByOwnershipAndCommits = (userData: UserData): UserData => {
+  const login = (userData.login || '').toLowerCase();
+  const commitRepos = userData.contributionsCollection?.commitContributionsByRepository || [];
+  const sourceRepos = userData.repositories?.nodes || [];
+
+  const commitRepoKeys = new Set<string>();
+  const commitRepoNames = new Set<string>();
+
+  commitRepos.forEach(repoContrib => {
+    const commits = repoContrib.contributions?.nodes || [];
+    const totalCommits = commits.reduce((sum, c) => sum + (c.commitCount || 0), 0);
+    if (totalCommits <= 0) return;
+
+    const owner = repoContrib.repository?.owner?.login;
+    const name = repoContrib.repository?.name;
+    const key = buildRepoKey(owner, name);
+
+    if (key) commitRepoKeys.add(key);
+    if (name) commitRepoNames.add(name.toLowerCase());
+  });
+
+  const filteredNodes = sourceRepos.filter(repo => {
+    const ownerLogin = repo.owner?.login;
+    const isOwner = (ownerLogin || '').toLowerCase() === login;
+    const isAdmin = (repo.viewerPermission || '').toUpperCase() === 'ADMIN';
+
+    const key = buildRepoKey(ownerLogin, repo.name);
+    const hasCommits = (key && commitRepoKeys.has(key)) || commitRepoNames.has((repo.name || '').toLowerCase());
+
+    return isOwner || isAdmin || hasCommits;
+  });
+
+  return {
+    ...userData,
+    repositories: {
+      ...userData.repositories,
+      totalCount: filteredNodes.length,
+      nodes: filteredNodes
+    }
+  };
+};
+
 // --- MOCK DATA FOR DEMO ---
 const generateMockCalendar = () => {
   const weeks = [];
@@ -204,6 +251,9 @@ const USER_DATA_FRAGMENT = `
         repository {
           name
           isPrivate
+          owner {
+            login
+          }
           primaryLanguage {
              name
              color
@@ -269,10 +319,14 @@ const USER_DATA_FRAGMENT = `
         url
         description
         isPrivate
+        viewerPermission
         stargazerCount
         forkCount
         pushedAt
         diskUsage
+        owner {
+          login
+        }
         primaryLanguage {
           name
           color
@@ -316,7 +370,11 @@ query ViewerAnnualReport($from: DateTime!, $to: DateTime!) {
 
 // --- FETCH FUNCTION ---
 
-export const fetchGitHubData = async (token: string, username?: string): Promise<UserData> => {
+export const fetchGitHubData = async (
+  token: string,
+  username?: string,
+  onProgress?: (message: string) => void
+): Promise<UserData> => {
   if (token === 'demo') {
     return new Promise((resolve) => setTimeout(() => resolve(MOCK_DATA), 1500));
   }
@@ -330,6 +388,7 @@ export const fetchGitHubData = async (token: string, username?: string): Promise
   // This is CRITICAL because querying 'viewer' allows access to private stats/repos 
   // that querying 'user(login: me)' might hide depending on token scope nuance.
   const isViewerQuery = !username || username.trim() === '';
+  onProgress?.(isViewerQuery ? '正在读取当前登录用户数据...' : `正在读取用户 @${username} 的公开数据...`);
 
   const query = isViewerQuery ? VIEWER_REPORT_QUERY : ANNUAL_REPORT_QUERY;
   const variables: any = { from, to };
@@ -337,6 +396,8 @@ export const fetchGitHubData = async (token: string, username?: string): Promise
   if (!isViewerQuery) {
     variables.login = username;
   }
+
+  onProgress?.('正在请求 GitHub GraphQL 接口...');
 
   const response = await fetch(GITHUB_GRAPHQL_API, {
     method: 'POST',
@@ -351,6 +412,8 @@ export const fetchGitHubData = async (token: string, username?: string): Promise
     throw new Error(`GitHub API Error: ${response.statusText}`);
   }
 
+  onProgress?.('接口返回成功，正在解析响应...');
+
   const json = await response.json();
   
   if (json.errors) {
@@ -364,7 +427,11 @@ export const fetchGitHubData = async (token: string, username?: string): Promise
     throw new Error(`User ${username || 'authenticated user'} not found or accessible.`);
   }
 
-  return userData;
+  onProgress?.('正在根据 owner/admin/commit 规则筛选仓库...');
+  const normalized = filterRepositoriesByOwnershipAndCommits(userData as UserData);
+  onProgress?.(`筛选完成：保留 ${normalized.repositories.nodes.length} 个有效仓库。`);
+
+  return normalized;
 };
 
 // --- HELPERS ---
@@ -472,6 +539,35 @@ export const analyzeUserData = (data: UserData, t: Translations): AnalysisResult
   const totalRepos = data.repositories?.totalCount || repoNodes.length;
   const avgRepoSize = totalRepos > 0 ? Math.round(totalDiskUsage / totalRepos) : 0;
   const privateRepoRatio = totalRepos > 0 ? privateRepoCount / totalRepos : 0;
+
+  const commitRepos = contributionCollection.commitContributionsByRepository || [];
+  const reposWithOwnCommits = commitRepos.filter(repoContrib => {
+    const nodes = repoContrib.contributions?.nodes || [];
+    return nodes.reduce((sum, c) => sum + (c.commitCount || 0), 0) > 0;
+  }).length;
+
+  const ownedOrAdminRepoCount = repoNodes.filter(repo => {
+    const isOwner = (repo.owner?.login || '').toLowerCase() === (data.login || '').toLowerCase();
+    const isAdmin = (repo.viewerPermission || '').toUpperCase() === 'ADMIN';
+    return isOwner || isAdmin;
+  }).length;
+
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  const recentActiveRepoCount = repoNodes.filter(repo => {
+    if (!repo.pushedAt) return false;
+    return new Date(repo.pushedAt).getTime() >= ninetyDaysAgo.getTime();
+  }).length;
+
+  const collaborationRepos = repoNodes.filter(repo => {
+    return (repo.owner?.login || '').toLowerCase() !== (data.login || '').toLowerCase();
+  }).length;
+
+  const commitDensity = reposWithOwnCommits > 0
+    ? parseFloat(((contributionCollection.totalCommitContributions || 0) / reposWithOwnCommits).toFixed(1))
+    : 0;
+  const collaborationIndex = totalRepos > 0 ? collaborationRepos / totalRepos : 0;
+  const repoFreshnessRatio = totalRepos > 0 ? recentActiveRepoCount / totalRepos : 0;
 
   // --- Time Distribution ---
   const commitContributions = contributionCollection.commitContributionsByRepository || [];
@@ -679,6 +775,12 @@ export const analyzeUserData = (data: UserData, t: Translations): AnalysisResult
     totalForks,
     avgRepoSize,
     privateRepoRatio,
+    filteredRepoCount: totalRepos,
+    ownedOrAdminRepoCount,
+    reposWithOwnCommits,
+    commitDensity,
+    collaborationIndex,
+    repoFreshnessRatio,
     openSourcePRs,
     orgPRs,
     personalPRs,

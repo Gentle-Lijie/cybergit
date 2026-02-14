@@ -38,6 +38,7 @@ export interface RepositoryNode {
   url: string;
   description: string | null;
   isPrivate: boolean;
+  viewerPermission?: string | null;
   stargazerCount: number;
   forkCount: number;
   pushedAt: string;
@@ -93,6 +94,9 @@ export interface RepoCommitContribution {
   repository: {
     name: string;
     isPrivate: boolean;
+    owner?: {
+      login: string;
+    };
     primaryLanguage: LanguageNode | null;
   };
   contributions: {
@@ -206,6 +210,14 @@ export interface AnalysisResult {
   totalForks: number;
   avgRepoSize: number; // KB
   privateRepoRatio: number; // 0-1
+
+  // Repository Scope Intelligence
+  filteredRepoCount: number;
+  ownedOrAdminRepoCount: number;
+  reposWithOwnCommits: number;
+  commitDensity: number;
+  collaborationIndex: number; // 0-1
+  repoFreshnessRatio: number; // 0-1
   
   // Community Stats
   openSourcePRs: number; 
