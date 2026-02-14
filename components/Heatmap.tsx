@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { ContributionCalendar } from '../types';
 import { useInView } from './Animators';
 import { Calendar } from 'lucide-react';
@@ -37,18 +37,37 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
     return selectedYear;
   }, [calendar.weeks]);
 
-  // Filter by detected dominant year
-  const filteredWeeks = useMemo(() => {
-    return (calendar.weeks || [])
-      .map(week => ({
-        ...week,
-        contributionDays: (week.contributionDays || []).filter(day => {
-          const date = new Date(day.date);
-          return !isNaN(date.getTime()) && date.getFullYear() === targetYear;
-        })
-      }))
-      .filter(week => week.contributionDays.length > 0);
-  }, [calendar.weeks, targetYear]);
+  // Determine available years from the data (descending)
+  const availableYears = useMemo(() => {
+    const s = new Set<number>();
+    (calendar.weeks || []).forEach(week => {
+      (week.contributionDays || []).forEach(day => {
+        const d = new Date(day.date);
+        if (!isNaN(d.getTime())) s.add(d.getFullYear());
+      });
+    });
+    return Array.from(s).sort((a, b) => b - a);
+  }, [calendar.weeks]);
+
+  const currentYear = new Date().getFullYear();
+  const previousYear = currentYear - 1;
+
+  const [selectedYear, setSelectedYear] = useState<number>(previousYear);
+
+  // If previous year has no data, fall back to detected dominant year
+  useEffect(() => {
+    if (availableYears.length === 0) {
+      setSelectedYear(targetYear);
+      return;
+    }
+    if (!availableYears.includes(previousYear)) {
+      setSelectedYear(targetYear);
+    } else {
+      setSelectedYear(previousYear);
+    }
+  }, [availableYears, previousYear, targetYear]);
+
+  
 
   // Determine color intensity based on contribution count
   const getColorClass = (count: number) => {
@@ -64,7 +83,7 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
     const labels: { name: string; weekIndex: number }[] = [];
     let lastMonth = -1;
 
-    filteredWeeks.forEach((week, index) => {
+    filteredWeeksForYear.forEach((week, index) => {
       // Use the first day of the week to determine the month
       const firstDay = week.contributionDays[0];
       if (!firstDay) return;
@@ -83,7 +102,20 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
       }
     });
     return labels;
-  }, [filteredWeeks]);
+  }, [filteredWeeksForYear]);
+
+  // Recompute filteredWeeks for the selected year
+  const filteredWeeksForYear = useMemo(() => {
+    return (calendar.weeks || [])
+      .map(week => ({
+        ...week,
+        contributionDays: (week.contributionDays || []).filter(day => {
+          const date = new Date(day.date);
+          return !isNaN(date.getTime()) && date.getFullYear() === selectedYear;
+        })
+      }))
+      .filter(week => week.contributionDays.length > 0);
+  }, [calendar.weeks, selectedYear]);
 
   return (
     <section className="relative" ref={ref}>
@@ -93,9 +125,26 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
             <Calendar className="w-4 h-4" />
             {t.heatmap.title}
           </h3>
-          <p className="text-[10px] text-gray-500 mt-1 uppercase">{t.heatmap.subtitle} {targetYear}</p>
+          <p className="text-[10px] text-gray-500 mt-1 uppercase">{t.heatmap.subtitle} {selectedYear}</p>
         </div>
-        
+        <div className="flex items-center gap-2 mt-3 md:mt-0">
+          <button
+            onClick={() => setSelectedYear(previousYear)}
+            disabled={!availableYears.includes(previousYear)}
+            className={`text-xs px-3 py-1 rounded ${selectedYear === previousYear ? 'bg-primary text-black' : 'bg-black/40 text-primary'} disabled:opacity-40`}
+          >
+            {previousYear}
+          </button>
+
+          <button
+            onClick={() => setSelectedYear(currentYear)}
+            disabled={!availableYears.includes(currentYear)}
+            className={`text-xs px-3 py-1 rounded ${selectedYear === currentYear ? 'bg-primary text-black' : 'bg-black/40 text-primary'} disabled:opacity-40`}
+          >
+            {currentYear}
+          </button>
+        </div>
+
         <div className="hidden sm:flex items-center gap-2 text-[10px] text-gray-500 mt-4 md:mt-0">
           <span>{t.heatmap.null}</span>
           <div className="flex gap-1">
@@ -110,7 +159,7 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
       </div>
 
       <div className="w-full overflow-x-auto pb-4 custom-scrollbar bg-surface-dark border border-primary/30 p-4 shadow-neon-strong">
-        {filteredWeeks.length === 0 && (
+        {filteredWeeksForYear.length === 0 && (
           <div className="text-center py-8 text-xs text-primary/50 font-mono uppercase tracking-widest">
             {t.tags.noData}
           </div>
@@ -119,7 +168,7 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
         <div className="min-w-max flex flex-col gap-1">
           {/* Month Labels Container */}
           <div className="relative h-4 w-full mb-2">
-            {monthLabels.map((label, i) => (
+              {monthLabels.map((label, i) => (
               <span 
                 key={i}
                 className="absolute text-[10px] text-primary/40 font-mono"
@@ -147,7 +196,7 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
 
             {/* The Grid */}
             <div className="flex-1 flex gap-[3px]">
-              {filteredWeeks.map((week, wIdx) => (
+              {filteredWeeksForYear.map((week, wIdx) => (
                  <div key={wIdx} className="flex flex-col gap-[3px]">
                    {week.contributionDays.map((day, dIdx) => (
                      <div 
