@@ -16,6 +16,7 @@ import { ProjectGallery } from './components/ProjectGallery';
 import { AdvancedInsights } from './components/AdvancedInsights';
 import { AiIdentity } from './components/AiIdentity';
 import { ScrollReveal } from './components/ScrollReveal';
+import { MobilePagedContent } from './components/MobilePagedContent';
 import { fetchGitHubData, processLanguageData, analyzeUserData } from './services/githubService';
 import { generatePersonaAnalysis } from './services/geminiService';
 import { audioService } from './services/audioService';
@@ -56,6 +57,7 @@ export default function App() {
   const [isDemo, setIsDemo] = useState(false);
   const [isMuted, setIsMuted] = useState(true); // Default muted
   const [showLogin, setShowLogin] = useState(false); // Controls login form visibility/animation
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   const appendLoadingLog = (message: string) => {
     const stamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
@@ -77,6 +79,20 @@ export default function App() {
       window.removeEventListener('click', initAudio);
       window.removeEventListener('keydown', initAudio);
     };
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 768px)');
+    const updateViewport = () => setIsMobileViewport(mediaQuery.matches);
+    updateViewport();
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', updateViewport);
+      return () => mediaQuery.removeEventListener('change', updateViewport);
+    }
+
+    mediaQuery.addListener(updateViewport);
+    return () => mediaQuery.removeListener(updateViewport);
   }, []);
 
   const toggleMute = () => {
@@ -373,6 +389,111 @@ export default function App() {
     window.history.replaceState({}, document.title, window.location.pathname);
   };
 
+  const reportSections = userData && analysis ? [
+    {
+      id: 'hero',
+      delay: 0,
+      content: <Hero user={userData} t={t} />
+    },
+    ...(aiPersona ? [{
+      id: 'ai-identity',
+      delay: 200,
+      content: <AiIdentity persona={aiPersona} t={t} />
+    }] : []),
+    {
+      id: 'metrics',
+      delay: 0,
+      content: (
+        <MetricsGrid
+          totalContributions={userData.contributionsCollection.contributionCalendar.totalContributions}
+          commits={userData.contributionsCollection.totalCommitContributions}
+          issues={userData.contributionsCollection.totalIssueContributions}
+          prs={userData.contributionsCollection.totalPullRequestContributions}
+          reviews={userData.contributionsCollection.totalPullRequestReviewContributions}
+          t={t}
+        />
+      )
+    },
+    {
+      id: 'language',
+      delay: 0,
+      content: <LanguageChart languages={languages} t={t} />
+    },
+    {
+      id: 'heatmap',
+      delay: 0,
+      content: <Heatmap calendar={userData.contributionsCollection.contributionCalendar} t={t} />
+    },
+    {
+      id: 'pr-analysis',
+      delay: 0,
+      content: <PrAnalysis analysis={analysis} t={t} />
+    },
+    {
+      id: 'contribution-breakdown',
+      delay: 0,
+      content: <ContributionBreakdown analysis={analysis} t={t} />
+    },
+    {
+      id: 'advanced-insights',
+      delay: 0,
+      content: <AdvancedInsights analysis={analysis} t={t} />
+    },
+    {
+      id: 'achievements',
+      delay: 0,
+      content: <Achievements analysis={analysis} t={t} />
+    },
+    {
+      id: 'community',
+      delay: 0,
+      content: <CommunitySection analysis={analysis} organizations={userData.organizations} t={t} />
+    },
+    {
+      id: 'projects',
+      delay: 0,
+      content: <ProjectGallery analysis={analysis} t={t} />
+    },
+    {
+      id: 'actions',
+      delay: 300,
+      content: (
+        <div className="flex flex-wrap justify-center gap-4 mb-8 md:mb-12 hide-on-screenshot">
+          <button
+            onClick={handleSaveImage}
+            disabled={savingImage || isSharing}
+            onMouseEnter={() => audioService.playHover()}
+            className="flex items-center gap-2 text-xs border bg-black text-primary border-primary hover:bg-primary hover:text-black px-4 py-2 rounded transition-all font-bold shadow-neon disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Camera className="w-4 h-4" />
+            {savingImage ? t.controls.capturing : t.controls.snapshot}
+          </button>
+
+          {!isDemo && (
+            <button
+              onClick={handleShare}
+              disabled={isSharing || savingImage}
+              onMouseEnter={() => audioService.playHover()}
+              className={`flex items-center gap-2 text-xs border px-4 py-2 rounded transition-all font-bold shadow-neon disabled:opacity-50 disabled:cursor-not-allowed ${shareSuccess ? 'bg-white text-black border-white' : 'bg-black text-blue-400 border-blue-400 hover:bg-blue-400 hover:text-black'}`}
+            >
+              <Share2 className="w-4 h-4" />
+              {isSharing ? t.controls.sharing : (shareSuccess ? t.controls.linkCopied : t.controls.share)}
+            </button>
+          )}
+
+          <button
+            onClick={handleTerminate}
+            disabled={savingImage || isSharing}
+            onMouseEnter={() => audioService.playHover()}
+            className="text-xs text-primary/40 hover:text-primary border border-primary/20 hover:border-primary px-4 py-2 rounded transition-all bg-black/50"
+          >
+            {t.controls.terminate}
+          </button>
+        </div>
+      )
+    }
+  ] : [];
+
   return (
     <Layout 
       userData={userData} 
@@ -421,107 +542,17 @@ export default function App() {
 
       {userData && analysis && !loading && (
         <>
-        <div className="flex flex-col gap-8 md:gap-12">
-          {/* Identity - Top Section */}
-          <ScrollReveal>
-            <Hero user={userData} t={t} />
-          </ScrollReveal>
-
-          {/* AI Identity Dossier */}
-          {aiPersona && (
-            <ScrollReveal delay={200}>
-              <AiIdentity persona={aiPersona} t={t} />
-            </ScrollReveal>
-          )}
-
-          {/* Core Metrics & Annual Output */}
-          <ScrollReveal>
-            <MetricsGrid 
-              totalContributions={userData.contributionsCollection.contributionCalendar.totalContributions}
-              commits={userData.contributionsCollection.totalCommitContributions}
-              issues={userData.contributionsCollection.totalIssueContributions}
-              prs={userData.contributionsCollection.totalPullRequestContributions}
-              reviews={userData.contributionsCollection.totalPullRequestReviewContributions}
-              t={t}
-            />
-          </ScrollReveal>
-
-          {/* Language Analysis */}
-          <ScrollReveal>
-            <LanguageChart languages={languages} t={t} />
-          </ScrollReveal>
-
-          {/* Heatmap */}
-          <ScrollReveal>
-            <Heatmap calendar={userData.contributionsCollection.contributionCalendar} t={t} />
-          </ScrollReveal>
-
-          {/* PR Efficiency */}
-          <ScrollReveal>
-            <PrAnalysis analysis={analysis} t={t} />
-          </ScrollReveal>
-
-          {/* Contribution Types */}
-          <ScrollReveal>
-            <ContributionBreakdown analysis={analysis} t={t} />
-          </ScrollReveal>
-
-          {/* Advanced Repo Intelligence */}
-          <ScrollReveal>
-            <AdvancedInsights analysis={analysis} t={t} />
-          </ScrollReveal>
-
-          {/* Achievements */}
-          <ScrollReveal>
-            <Achievements analysis={analysis} t={t} />
-          </ScrollReveal>
-
-          {/* Community & Influence */}
-          <ScrollReveal>
-            <CommunitySection analysis={analysis} organizations={userData.organizations} t={t} />
-          </ScrollReveal>
-
-          {/* Projects & Topics */}
-          <ScrollReveal>
-             <ProjectGallery analysis={analysis} t={t} />
-          </ScrollReveal>
-
-          <ScrollReveal delay={300}>
-            {/* Action Buttons - Hidden in Screenshot */}
-            <div className="flex flex-wrap justify-center gap-4 mb-8 md:mb-12 hide-on-screenshot">
-              <button 
-                onClick={handleSaveImage}
-                disabled={savingImage || isSharing}
-                onMouseEnter={() => audioService.playHover()}
-                className="flex items-center gap-2 text-xs border bg-black text-primary border-primary hover:bg-primary hover:text-black px-4 py-2 rounded transition-all font-bold shadow-neon disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Camera className="w-4 h-4" />
-                {savingImage ? t.controls.capturing : t.controls.snapshot}
-              </button>
-
-              {!isDemo && (
-                <button 
-                  onClick={handleShare}
-                  disabled={isSharing || savingImage}
-                  onMouseEnter={() => audioService.playHover()}
-                  className={`flex items-center gap-2 text-xs border px-4 py-2 rounded transition-all font-bold shadow-neon disabled:opacity-50 disabled:cursor-not-allowed ${shareSuccess ? 'bg-white text-black border-white' : 'bg-black text-blue-400 border-blue-400 hover:bg-blue-400 hover:text-black'}`}
-                >
-                  <Share2 className="w-4 h-4" />
-                  {isSharing ? t.controls.sharing : (shareSuccess ? t.controls.linkCopied : t.controls.share)}
-                </button>
-              )}
-              
-              <button 
-                onClick={handleTerminate}
-                disabled={savingImage || isSharing}
-                onMouseEnter={() => audioService.playHover()}
-                className="text-xs text-primary/40 hover:text-primary border border-primary/20 hover:border-primary px-4 py-2 rounded transition-all bg-black/50"
-              >
-                {t.controls.terminate}
-              </button>
-            </div>
-          </ScrollReveal>
-        </div>
+        {isMobileViewport ? (
+          <MobilePagedContent sections={reportSections.map(section => section.content)} />
+        ) : (
+          <div className="flex flex-col gap-8 md:gap-12">
+            {reportSections.map(section => (
+              <ScrollReveal key={section.id} delay={section.delay}>
+                {section.content}
+              </ScrollReveal>
+            ))}
+          </div>
+        )}
           <div className="relative border-t border-primary/20 bg-black/90 py-6 text-center relative z-10">
             <div className="max-w-7xl mx-auto flex flex-col items-center gap-4">
               <div className="flex items-center gap-2 text-primary/60 font-mono text-xs">

@@ -116,70 +116,76 @@ export const generatePersonaAnalysis = async (
   if (apiKey) {
     const ai = new GoogleGenAI({ apiKey });
     
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: JSON.stringify(summaryData),
-      config: {
-        systemInstruction: systemPrompt,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            veteran: {
-              type: Type.OBJECT,
-              properties: {
-                title: { type: Type.STRING },
-                yearsSince: { type: Type.NUMBER },
-                location: { type: Type.STRING },
-                description: { type: Type.STRING },
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: JSON.stringify(summaryData),
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              veteran: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  yearsSince: { type: Type.NUMBER },
+                  location: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                }
+              },
+              specialist: {
+                type: Type.OBJECT,
+                properties: {
+                  primaryLang: { type: Type.STRING },
+                  secondaryLangs: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  nicheLang: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                }
+              },
+              creator: {
+                type: Type.OBJECT,
+                properties: {
+                  topProjects: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  description: { type: Type.STRING },
+                }
+              },
+              aiSurfer: {
+                type: Type.OBJECT,
+                properties: {
+                  keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  description: { type: Type.STRING },
+                }
+              },
+              collaborator: {
+                 type: Type.OBJECT,
+                 properties: {
+                   orgNames: { type: Type.ARRAY, items: { type: Type.STRING } },
+                   description: { type: Type.STRING }
+                 }
+              },
+              finalPersona: {
+                 type: Type.OBJECT,
+                 properties: {
+                   title: { type: Type.STRING },
+                   keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+                   summary: { type: Type.STRING }
+                 }
               }
-            },
-            specialist: {
-              type: Type.OBJECT,
-              properties: {
-                primaryLang: { type: Type.STRING },
-                secondaryLangs: { type: Type.ARRAY, items: { type: Type.STRING } },
-                nicheLang: { type: Type.STRING },
-                description: { type: Type.STRING },
-              }
-            },
-            creator: {
-              type: Type.OBJECT,
-              properties: {
-                topProjects: { type: Type.ARRAY, items: { type: Type.STRING } },
-                description: { type: Type.STRING },
-              }
-            },
-            aiSurfer: {
-              type: Type.OBJECT,
-              properties: {
-                keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-                description: { type: Type.STRING },
-              }
-            },
-            collaborator: {
-               type: Type.OBJECT,
-               properties: {
-                 orgNames: { type: Type.ARRAY, items: { type: Type.STRING } },
-                 description: { type: Type.STRING }
-               }
-            },
-            finalPersona: {
-               type: Type.OBJECT,
-               properties: {
-                 title: { type: Type.STRING },
-                 keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-                 summary: { type: Type.STRING }
-               }
             }
           }
         }
-      }
-    });
+      });
 
-    const text = response.text;
-    if (!text) throw new Error("No analysis generated");
-    return JSON.parse(text) as AiPersona;
+      const text = response.text;
+      if (!text) throw new Error("No analysis generated");
+      return JSON.parse(text) as AiPersona;
+    } catch (err) {
+      // Gemini-specific problems (invalid API key, bad request, etc.) should not crash the app
+      // Fall through to the next fallback provider and log a concise warning for debugging
+      console.warn('Gemini generation failed, falling back to other AI providers:', err);
+    }
   }
 
   // 2. Try any OpenAI-compatible API configured by env

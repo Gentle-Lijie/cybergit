@@ -13,6 +13,17 @@ interface HeatmapProps {
 export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
   const { ref, isInView } = useInView({ threshold: 0.2 });
 
+  // Dev-only debug info to help trace empty-data cases
+  if (typeof window !== 'undefined' && (import.meta as any)?.env?.DEV) {
+    try {
+      const sampleWeeks = (calendar?.weeks || []).slice(0, 3).map(w => (w.contributionDays || []).slice(0,3).map(d=>d.date));
+      // eslint-disable-next-line no-console
+      console.debug('Heatmap debug:', { totalWeeks: (calendar?.weeks || []).length, sampleWeeks });
+    } catch (e) {
+      // ignore
+    }
+  }
+
   const targetYear = useMemo(() => {
     const yearCounter = new Map<number, number>();
     (calendar.weeks || []).forEach(week => {
@@ -67,6 +78,9 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
     }
   }, [availableYears, previousYear, targetYear]);
 
+  const canSelectPreviousYear = availableYears.includes(previousYear);
+  const canSelectCurrentYear = availableYears.includes(currentYear);
+
   
 
   // Determine color intensity based on contribution count
@@ -77,32 +91,6 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
     if (count <= 10) return 'bg-[#009900] border border-primary/40';
     return 'bg-[#00FF41] shadow-neon';
   };
-
-  // Calculate month labels based on filtered data
-  const monthLabels = useMemo(() => {
-    const labels: { name: string; weekIndex: number }[] = [];
-    let lastMonth = -1;
-
-    filteredWeeksForYear.forEach((week, index) => {
-      // Use the first day of the week to determine the month
-      const firstDay = week.contributionDays[0];
-      if (!firstDay) return;
-      
-      const date = new Date(firstDay.date);
-      // Valid date check
-      if (isNaN(date.getTime())) return;
-      
-      const month = date.getMonth();
-      // If month changes or it's the first week, add a label
-      if (month !== lastMonth) {
-        // Use browser locale, or fallback to english short month if needed, but let's stick to simple
-        const monthName = date.toLocaleString('en-US', { month: 'short' }).toUpperCase();
-        labels.push({ name: monthName, weekIndex: index });
-        lastMonth = month;
-      }
-    });
-    return labels;
-  }, [filteredWeeksForYear]);
 
   // Recompute filteredWeeks for the selected year
   const filteredWeeksForYear = useMemo(() => {
@@ -117,6 +105,27 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
       .filter(week => week.contributionDays.length > 0);
   }, [calendar.weeks, selectedYear]);
 
+  // Now that filteredWeeksForYear is defined, re-create monthLabels with correct dependency
+  const monthLabels = useMemo(() => {
+    const labels: { name: string; weekIndex: number }[] = [];
+    let lastMonth = -1;
+
+    filteredWeeksForYear.forEach((week, index) => {
+      const firstDay = week.contributionDays[0];
+      if (!firstDay) return;
+      const date = new Date(firstDay.date);
+      if (isNaN(date.getTime())) return;
+      const month = date.getMonth();
+      if (month !== lastMonth) {
+        const monthName = date.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+        labels.push({ name: monthName, weekIndex: index });
+        lastMonth = month;
+      }
+    });
+    return labels;
+  }, [filteredWeeksForYear]);
+
+
   return (
     <section className="relative" ref={ref}>
       <div className="flex flex-col md:flex-row justify-between items-start mb-6">
@@ -129,17 +138,17 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
         </div>
         <div className="flex items-center gap-2 mt-3 md:mt-0">
           <button
-            onClick={() => setSelectedYear(previousYear)}
-            disabled={!availableYears.includes(previousYear)}
-            className={`text-xs px-3 py-1 rounded ${selectedYear === previousYear ? 'bg-primary text-black' : 'bg-black/40 text-primary'} disabled:opacity-40`}
+            onClick={() => canSelectPreviousYear && setSelectedYear(previousYear)}
+            disabled={!canSelectPreviousYear}
+            className={`text-xs px-3 py-1 rounded ${selectedYear === previousYear ? 'bg-primary text-black' : 'bg-black/40 text-primary'} ${!canSelectPreviousYear ? 'opacity-40 cursor-not-allowed' : ''}`}
           >
             {previousYear}
           </button>
 
           <button
-            onClick={() => setSelectedYear(currentYear)}
-            disabled={!availableYears.includes(currentYear)}
-            className={`text-xs px-3 py-1 rounded ${selectedYear === currentYear ? 'bg-primary text-black' : 'bg-black/40 text-primary'} disabled:opacity-40`}
+            onClick={() => canSelectCurrentYear && setSelectedYear(currentYear)}
+            disabled={!canSelectCurrentYear}
+            className={`text-xs px-3 py-1 rounded ${selectedYear === currentYear ? 'bg-primary text-black' : 'bg-black/40 text-primary'} ${!canSelectCurrentYear ? 'opacity-40 cursor-not-allowed' : ''}`}
           >
             {currentYear}
           </button>

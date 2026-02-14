@@ -87,11 +87,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading, error,
                 <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                     <div className="relative">
                         <input 
-                            type="password"
-                            value={token}
-                            onChange={(e) => { setToken(e.target.value); audioService.playType(); }}
-                            placeholder={t.login.tokenPlaceholder}
-                            className="w-full bg-black border border-primary/30 text-primary p-3 pl-10 focus:outline-none focus:border-primary focus:shadow-[0_0_10px_rgba(0,255,65,0.3)] transition-all font-mono text-xs placeholder:text-primary/30"
+                          type="password"
+                          value={token}
+                          onChange={(e) => { setToken(e.target.value); audioService.playType(); }}
+                          placeholder={t.login.tokenPlaceholder}
+                          autoComplete="new-password"
+                          className="w-full bg-black border border-primary/30 text-primary p-3 pl-10 focus:outline-none focus:border-primary focus:shadow-[0_0_10px_rgba(0,255,65,0.3)] transition-all font-mono text-xs placeholder:text-primary/30"
                         />
                         <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/50 w-4 h-4" />
                     </div>

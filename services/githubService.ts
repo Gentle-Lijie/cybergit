@@ -1,4 +1,4 @@
-import { UserData, ProcessedLanguage, RepositoryNode, AnalysisResult, ContributionDay, TopicStat } from '../types';
+import { UserData, ProcessedLanguage, RepositoryNode, AnalysisResult, ContributionDay, TopicStat, ContributionCalendar } from '../types';
 import { Translations } from '../translations';
 
 const GITHUB_GRAPHQL_API = 'https://api.github.com/graphql';
@@ -368,6 +368,83 @@ query ViewerAnnualReport($from: DateTime!, $to: DateTime!) {
 }
 `;
 
+const USER_PREVIOUS_YEAR_CALENDAR_QUERY = `
+query UserPreviousYearCalendar($login: String!, $from: DateTime!, $to: DateTime!) {
+  user(login: $login) {
+    contributionsCollection(from: $from, to: $to) {
+      contributionCalendar {
+        totalContributions
+        weeks {
+          contributionDays {
+            contributionCount
+            date
+            color
+            weekday
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
+const VIEWER_PREVIOUS_YEAR_CALENDAR_QUERY = `
+query ViewerPreviousYearCalendar($from: DateTime!, $to: DateTime!) {
+  viewer {
+    contributionsCollection(from: $from, to: $to) {
+      contributionCalendar {
+        totalContributions
+        weeks {
+          contributionDays {
+            contributionCount
+            date
+            color
+            weekday
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
+const mergeContributionCalendars = (
+  currentCalendar: ContributionCalendar,
+  previousCalendar: ContributionCalendar | null
+): ContributionCalendar => {
+  if (!previousCalendar) return currentCalendar;
+
+  const seenDates = new Set<string>();
+  const mergedWeeks: ContributionCalendar['weeks'] = [];
+
+  const pushUniqueWeeks = (weeks: ContributionCalendar['weeks']) => {
+    (weeks || []).forEach(week => {
+      const uniqueDays = (week.contributionDays || []).filter(day => {
+        if (!day?.date || seenDates.has(day.date)) return false;
+        seenDates.add(day.date);
+        return true;
+      });
+
+      if (uniqueDays.length > 0) {
+        mergedWeeks.push({ contributionDays: uniqueDays });
+      }
+    });
+  };
+
+  // Keep chronological order: previous year first, current year second
+  pushUniqueWeeks(previousCalendar.weeks || []);
+  pushUniqueWeeks(currentCalendar.weeks || []);
+
+  const totalContributions = mergedWeeks
+    .flatMap(week => week.contributionDays || [])
+    .reduce((sum, day) => sum + (day.contributionCount || 0), 0);
+
+  return {
+    totalContributions,
+    weeks: mergedWeeks
+  };
+};
+
 // --- FETCH FUNCTION ---
 
 export const fetchGitHubData = async (
@@ -379,10 +456,14 @@ export const fetchGitHubData = async (
     return new Promise((resolve) => setTimeout(() => resolve(MOCK_DATA), 1500));
   }
 
-  // Default to year 2025 (or current year)
+  // Main report must stay within 1 year due to GitHub contributionsCollection constraints.
+  // Previous-year heatmap data is fetched via a second calendar-only query.
   const currentYear = new Date().getFullYear();
+  const previousYear = currentYear - 1;
   const from = `${currentYear}-01-01T00:00:00Z`;
   const to = `${currentYear}-12-31T23:59:59Z`;
+  const previousYearFrom = `${previousYear}-01-01T00:00:00Z`;
+  const previousYearTo = `${previousYear}-12-31T23:59:59Z`;
 
   // IF no username is provided, we use the VIEWER query.
   // This is CRITICAL because querying 'viewer' allows access to private stats/repos 
@@ -425,6 +506,47 @@ export const fetchGitHubData = async (
 
   if (!userData) {
     throw new Error(`User ${username || 'authenticated user'} not found or accessible.`);
+  }
+
+  // Try to extend heatmap with previous-year calendar data.
+  // If this fails, keep current-year data without blocking the whole report.
+  try {
+    onProgress?.('正在补充上一年热力图数据...');
+
+    const calendarQuery = isViewerQuery ? VIEWER_PREVIOUS_YEAR_CALENDAR_QUERY : USER_PREVIOUS_YEAR_CALENDAR_QUERY;
+    const calendarVariables: any = {
+      from: previousYearFrom,
+      to: previousYearTo
+    };
+
+    if (!isViewerQuery) {
+      calendarVariables.login = username;
+    }
+
+    const calendarResponse = await fetch(GITHUB_GRAPHQL_API, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ query: calendarQuery, variables: calendarVariables }),
+    });
+
+    if (calendarResponse.ok) {
+      const calendarJson = await calendarResponse.json();
+      const calendarRoot = isViewerQuery ? calendarJson?.data?.viewer : calendarJson?.data?.user;
+      const previousCalendar = calendarRoot?.contributionsCollection?.contributionCalendar as ContributionCalendar | undefined;
+
+      if (previousCalendar && userData?.contributionsCollection?.contributionCalendar) {
+        userData.contributionsCollection.contributionCalendar = mergeContributionCalendars(
+          userData.contributionsCollection.contributionCalendar,
+          previousCalendar
+        );
+        onProgress?.('上一年热力图数据已合并。');
+      }
+    }
+  } catch (calendarErr) {
+    console.warn('Failed to fetch previous-year calendar, fallback to current-year only:', calendarErr);
   }
 
   onProgress?.('正在根据 owner/admin/commit 规则筛选仓库...');
