@@ -13,15 +13,42 @@ interface HeatmapProps {
 export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
   const { ref, isInView } = useInView({ threshold: 0.2 });
 
-  // Filter for year 2025 only
+  const targetYear = useMemo(() => {
+    const yearCounter = new Map<number, number>();
+    (calendar.weeks || []).forEach(week => {
+      (week.contributionDays || []).forEach(day => {
+        const date = new Date(day.date);
+        if (isNaN(date.getTime())) return;
+        const year = date.getFullYear();
+        yearCounter.set(year, (yearCounter.get(year) || 0) + 1);
+      });
+    });
+
+    if (yearCounter.size === 0) return new Date().getFullYear();
+
+    let selectedYear = new Date().getFullYear();
+    let maxCount = -1;
+    yearCounter.forEach((count, year) => {
+      if (count > maxCount) {
+        selectedYear = year;
+        maxCount = count;
+      }
+    });
+    return selectedYear;
+  }, [calendar.weeks]);
+
+  // Filter by detected dominant year
   const filteredWeeks = useMemo(() => {
-    return calendar.weeks
+    return (calendar.weeks || [])
       .map(week => ({
         ...week,
-        contributionDays: week.contributionDays.filter(day => day.date.startsWith('2025'))
+        contributionDays: (week.contributionDays || []).filter(day => {
+          const date = new Date(day.date);
+          return !isNaN(date.getTime()) && date.getFullYear() === targetYear;
+        })
       }))
       .filter(week => week.contributionDays.length > 0);
-  }, [calendar.weeks]);
+  }, [calendar.weeks, targetYear]);
 
   // Determine color intensity based on contribution count
   const getColorClass = (count: number) => {
@@ -66,7 +93,7 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
             <Calendar className="w-4 h-4" />
             {t.heatmap.title}
           </h3>
-          <p className="text-[10px] text-gray-500 mt-1 uppercase">{t.heatmap.subtitle}</p>
+          <p className="text-[10px] text-gray-500 mt-1 uppercase">{t.heatmap.subtitle} {targetYear}</p>
         </div>
         
         <div className="hidden sm:flex items-center gap-2 text-[10px] text-gray-500 mt-4 md:mt-0">
@@ -83,6 +110,12 @@ export const Heatmap: React.FC<HeatmapProps> = ({ calendar, t }) => {
       </div>
 
       <div className="w-full overflow-x-auto pb-4 custom-scrollbar bg-surface-dark border border-primary/30 p-4 shadow-neon-strong">
+        {filteredWeeks.length === 0 && (
+          <div className="text-center py-8 text-xs text-primary/50 font-mono uppercase tracking-widest">
+            {t.tags.noData}
+          </div>
+        )}
+
         <div className="min-w-max flex flex-col gap-1">
           {/* Month Labels Container */}
           <div className="relative h-4 w-full mb-2">

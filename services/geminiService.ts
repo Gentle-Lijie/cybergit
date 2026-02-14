@@ -2,6 +2,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserData, AiPersona, Language, AnalysisResult, ProcessedLanguage } from '../types';
 
+const getEnv = (key: string): string | undefined => {
+  const viteEnv = (typeof import.meta !== 'undefined' ? (import.meta as any).env : undefined) || {};
+  const processEnv = (globalThis as any)?.process?.env || {};
+  return viteEnv[key] || processEnv[key];
+};
+
+const extractJsonPayload = (raw: string): string => {
+  const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start >= 0 && end > start) return cleaned.slice(start, end + 1);
+  return cleaned;
+};
+
 // Mock AI Persona for Demo Mode
 const getMockPersona = (lang: string): AiPersona => {
     const isZh = lang === 'zh';
@@ -98,7 +112,7 @@ export const generatePersonaAnalysis = async (
   `;
 
   // 1. Try Gemini if API Key is present
-  const apiKey = process.env.API_KEY || process.env.VITE_GEMINI_API_KEY
+  const apiKey = getEnv('API_KEY') || getEnv('VITE_GEMINI_API_KEY');
   if (apiKey) {
     const ai = new GoogleGenAI({ apiKey });
     
@@ -168,7 +182,66 @@ export const generatePersonaAnalysis = async (
     return JSON.parse(text) as AiPersona;
   }
 
-  // 2. Try Custom API Proxy
+  // 2. Try any OpenAI-compatible API configured by env
+  const openaiBaseUrl = getEnv('VITE_OPENAI_API_BASE_URL');
+  const openaiApiKey = getEnv('VITE_OPENAI_API_KEY');
+  const openaiModel = getEnv('VITE_OPENAI_MODEL') || 'gpt-4o-mini';
+  const openaiPath = getEnv('VITE_OPENAI_API_PATH') || '/v1/chat/completions';
+
+  if (openaiBaseUrl && openaiApiKey) {
+    const normalizedBase = openaiBaseUrl.replace(/\/$/, '');
+    const normalizedPath = openaiPath.startsWith('/') ? openaiPath : `/${openaiPath}`;
+    const endpoint = `${normalizedBase}${normalizedPath}`;
+
+    const jsonStructure = {
+      veteran: { title: "string", yearsSince: 0, location: "string", description: "string" },
+      specialist: { primaryLang: "string", secondaryLangs: ["string"], nicheLang: "string", description: "string" },
+      creator: { topProjects: ["string"], description: "string" },
+      aiSurfer: { keywords: ["string"], description: "string" },
+      collaborator: { orgNames: ["string"], description: "string" },
+      finalPersona: { title: "string", keywords: ["string"], summary: "string" }
+    };
+
+    const openaiPrompt = `${systemPrompt}
+
+    RETURN ONLY PURE JSON matching the structure below. Do not wrap in markdown code blocks.
+    Structure:
+    ${JSON.stringify(jsonStructure, null, 2)}
+    `;
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openaiApiKey}`,
+          ...(getEnv('VITE_OPENAI_ORG') ? { 'OpenAI-Organization': getEnv('VITE_OPENAI_ORG') as string } : {}),
+        },
+        body: JSON.stringify({
+          model: openaiModel,
+          messages: [
+            { role: 'system', content: openaiPrompt },
+            { role: 'user', content: JSON.stringify(summaryData) }
+          ],
+          response_format: { type: 'json_object' }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI-compatible API Error: ${response.status} ${response.statusText}`);
+      }
+
+      const json = await response.json();
+      const content = json?.choices?.[0]?.message?.content;
+      if (!content) throw new Error('No content from OpenAI-compatible API');
+
+      return JSON.parse(extractJsonPayload(content)) as AiPersona;
+    } catch (err) {
+      console.warn('OpenAI-compatible API failed, falling back:', err);
+    }
+  }
+
+  // 3. Try Custom API Proxy
   try {
     const response = await fetch('https://cybergit-api.u14.app/api/ai', {
       method: 'POST',
@@ -191,7 +264,7 @@ export const generatePersonaAnalysis = async (
     console.warn("Custom API Proxy failed, falling back to Pollinations:", err);
   }
 
-  // 3. Fallback to Pollinations.ai (OpenAI Compatible)
+  // 4. Fallback to Pollinations.ai (OpenAI Compatible)
   console.log("Using Pollinations.ai fallback (openai-fast)...");
   
   const jsonStructure = {
@@ -237,9 +310,7 @@ export const generatePersonaAnalysis = async (
     if (!content) throw new Error("No content from Pollinations AI");
 
     // Clean markdown code blocks if present (common in LLM output even when asked for JSON)
-    content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-
-    return JSON.parse(content) as AiPersona;
+    return JSON.parse(extractJsonPayload(content)) as AiPersona;
   } catch (err) {
     console.error("Pollinations AI failed:", err);
     throw new Error("Failed to generate persona via Fallback AI.");

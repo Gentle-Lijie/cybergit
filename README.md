@@ -49,7 +49,7 @@ Preview URL: [Amery2010's CyberGit Report](https://cybergit.u14.app/#Amery2010)
 *   **Cyberpunk UI/UX**: Matrix rain canvas effects, CRT scanlines, neon glows, and immersive audio SFX (typing, hovering, booting).
 *   **Deep Data Analysis**: Backend logic to calculate streaks, refactor ratios, and merge velocities from raw GraphQL nodes.
 *   **AI Persona Generation**: Uses Google Gemini to generate a unique narrative profile describing your coding soul.
-*   **Contribution Heatmap**: A custom-built, glowing activity grid for the year 2025.
+*   **Contribution Heatmap**: A dynamic, glowing activity grid auto-detected from your report year.
 *   **3D Tech Cloud**: Interactive tag sphere visualizing your top topics.
 *   **Export & Share**: Generate a high-quality PNG snapshot of your report or share via a unique uplink URL.
 
@@ -58,7 +58,7 @@ Preview URL: [Amery2010's CyberGit Report](https://cybergit.u14.app/#Amery2010)
 *   **Frontend**: React 19, TypeScript
 *   **Styling**: Tailwind CSS (with custom animations and fonts)
 *   **Data Fetching**: GitHub GraphQL API
-*   **AI**: Google GenAI SDK (`@google/genai`)
+*   **AI**: Google GenAI SDK (`@google/genai`) + OpenAI-Compatible Chat Completions API
 *   **Audio**: Web Audio API (Custom oscillator synthesizer)
 
 ## 🔌 Installation & Access
@@ -68,6 +68,7 @@ Preview URL: [Amery2010's CyberGit Report](https://cybergit.u14.app/#Amery2010)
 *   Node.js (v18+)
 *   A GitHub Personal Access Token (Scope: `read:user`, `read:org`, `repo`)
 *   (Optional) Google Gemini API Key for AI features
+*   (Optional) Any OpenAI-compatible API endpoint and key
 
 ### Local Deployment
 
@@ -87,6 +88,15 @@ Preview URL: [Amery2010's CyberGit Report](https://cybergit.u14.app/#Amery2010)
     ```env
     # Optional: For local AI generation without proxy
     VITE_GEMINI_API_KEY=your_gemini_api_key_here
+
+    # Optional: Any OpenAI-compatible API (Chat Completions)
+    # Examples: OpenAI, Azure OpenAI-compatible gateway, vLLM, OneAPI, LocalAI, etc.
+    VITE_OPENAI_API_BASE_URL=https://api.openai.com
+    VITE_OPENAI_API_PATH=/v1/chat/completions
+    VITE_OPENAI_API_KEY=your_openai_compatible_api_key_here
+    VITE_OPENAI_MODEL=gpt-4o-mini
+    # Optional org header
+    # VITE_OPENAI_ORG=org_xxx
     ```
 
 4.  **Initiate System**

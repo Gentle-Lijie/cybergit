@@ -676,6 +676,37 @@ export const analyzeUserData = (data: UserData, t: Translations): AnalysisResult
     .slice(0, 15) // Increased limit for cloud
     .map(([name, count]) => ({ name, count }));
 
+  let resilientTopTopics = topTopics;
+  if (resilientTopTopics.length === 0) {
+    const fallbackMap = new Map<string, number>();
+
+    repoNodes.forEach(repo => {
+      const lang = repo.primaryLanguage?.name;
+      if (lang) {
+        fallbackMap.set(lang.toLowerCase(), (fallbackMap.get(lang.toLowerCase()) || 0) + 2);
+      }
+
+      (repo.languages?.edges || []).forEach(edge => {
+        const name = edge.node?.name;
+        if (name) {
+          fallbackMap.set(name.toLowerCase(), (fallbackMap.get(name.toLowerCase()) || 0) + 1);
+        }
+      });
+
+      const repoName = (repo.name || '').toLowerCase();
+      repoName.split(/[-_.\s]+/).forEach(token => {
+        if (token.length >= 3) {
+          fallbackMap.set(token, (fallbackMap.get(token) || 0) + 1);
+        }
+      });
+    });
+
+    resilientTopTopics = Array.from(fallbackMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 15)
+      .map(([name, count]) => ({ name, count }));
+  }
+
   // --- Community & Classification Analysis ---
   let openSourcePRs = 0;
   let orgPRs = 0;
@@ -786,7 +817,7 @@ export const analyzeUserData = (data: UserData, t: Translations): AnalysisResult
     personalPRs,
     impactRepo,
     topOrganization,
-    topTopics,
+    topTopics: resilientTopTopics,
     topReposList
   };
 };

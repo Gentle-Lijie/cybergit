@@ -64,7 +64,7 @@ export const translations = {
     },
     heatmap: {
       title: 'Temporal_Activity_Log',
-      subtitle: 'Activity Log // 2025 Cycle',
+      subtitle: 'Activity Log // Annual Cycle',
       null: 'NULL',
       max: 'MAX'
     },
@@ -252,7 +252,7 @@ export const translations = {
     },
     heatmap: {
       title: '时间活动日志',
-      subtitle: '活动日志 // 2025 周期',
+      subtitle: '活动日志 // 年度周期',
       null: '零',
       max: '最强'
     },

@@ -49,7 +49,7 @@
 *   **赛博朋克 UI/UX**: 包含黑客帝国式的代码雨 Canvas 特效、CRT 扫描线、霓虹光晕以及沉浸式的音频音效（打字声、悬停声、启动音）。
 *   **深度数据分析**: 后端逻辑负责计算连胜、重构比率以及从原始 GraphQL 节点中提取合并速度。
 *   **AI 人格生成**: 使用 AI 模型生成描述你编程灵魂的独特叙事档案。
-*   **贡献热力图**: 专为 2025 年定制的绿色荧光活动网格。
+*   **贡献热力图**: 自动识别报告年份的绿色荧光活动网格。
 *   **3D 技术云**: 可交互的 3D 标签球，展示你的热门技术栈。
 *   **导出与分享**: 生成高质量的 PNG 报告快照，或通过唯一的上行链路 URL 分享你的档案。
 
@@ -58,7 +58,7 @@
 *   **前端**: React 19, TypeScript
 *   **样式**: Tailwind CSS (配合自定义动画与字体)
 *   **数据源**: GitHub GraphQL API
-*   **AI**: Google GenAI SDK (`@google/genai`)
+*   **AI**: Google GenAI SDK (`@google/genai`) + OpenAI 兼容 Chat Completions API
 *   **音频**: Web Audio API (自定义振荡器合成器)
 
 ## 🔌 安装与接入
@@ -68,6 +68,7 @@
 *   Node.js (v18+)
 *   GitHub Personal Access Token (权限范围: `read:user`, `read:org`, `repo`)
 *   (可选) Google Gemini API Key 用于 AI 功能
+*   (可选) 任意 OpenAI 格式 API 的地址与密钥
 
 ### 本地部署
 
@@ -87,6 +88,15 @@
     ```env
     # 可选：用于本地开发的 Gemini API Key
     VITE_GEMINI_API_KEY=your_gemini_api_key_here
+
+    # 可选：任意 OpenAI 兼容接口（Chat Completions）
+    # 例如：OpenAI、兼容网关、vLLM、OneAPI、LocalAI 等
+    VITE_OPENAI_API_BASE_URL=https://api.openai.com
+    VITE_OPENAI_API_PATH=/v1/chat/completions
+    VITE_OPENAI_API_KEY=your_openai_compatible_api_key_here
+    VITE_OPENAI_MODEL=gpt-4o-mini
+    # 可选组织头
+    # VITE_OPENAI_ORG=org_xxx
     ```
 
 4.  **启动系统**
